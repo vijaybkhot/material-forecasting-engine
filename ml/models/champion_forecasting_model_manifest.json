@@ -1,0 +1,22 @@
+{
+    "model_name": "SARIMAX",
+    "model_class": "statsmodels.tsa.statespace.sarimax.SARIMAX",
+    "training_date": "2025-10-15 07:04:53",
+    "cross_validation_metrics": {
+        "mean_smape": 9.08,
+        "std_dev_smape": 8.83
+    },
+    "model_parameters": {
+        "order": [
+            1,
+            1,
+            1
+        ],
+        "seasonal_order": [
+            1,
+            1,
+            1,
+            12
+        ]
+    }
+}
