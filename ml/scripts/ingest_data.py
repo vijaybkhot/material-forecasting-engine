@@ -3,31 +3,23 @@ import requests
 import pandas as pd
 from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
-
-# --- CONFIGURATION ---
-# Load environment variables from the .env file in the project root
 from pathlib import Path
 
-# Build an absolute path to the .env file in the project root
-# This is robust and works no matter where you run the script from
+# --- CONFIGURATION ---
 project_root = Path(__file__).resolve().parents[2]
 dotenv_path = project_root / '.env'
 load_dotenv(dotenv_path=dotenv_path)
 
-
-# Get the database URL and FRED API key from environment variables
-DATABASE_URL = os.getenv("DATABASE_URL_ALEMBIC") # Using the alembic URL for localhost connection
+DATABASE_URL = os.getenv("DATABASE_URL_ALEMBIC")
 FRED_API_KEY = os.getenv("FRED_API_KEY")
 
-# Define the economic series we want to fetch from FRED
-# Format is 'FRED_SERIES_CODE': 'our_series_id'
 SERIES_TO_FETCH = {
-    'WPU101702': 'PPI_STEEL', # Steel Mill Products
-    'WPU102': 'PPI_LUMBER', # Lumber and Wood Products
-    'PCU327320327320': 'PPI_CONCRETE', # Ready-Mix Concrete
-    'HOUST': 'HOUSING_STARTS', # Housing Starts
-    'CPIAUCSL': 'CPI_ALL', # Consumer Price Index
-    'FEDFUNDS': 'FED_FUNDS_RATE' # Federal Funds Rate
+    'WPU101702': 'PPI_STEEL',
+    'WPU102': 'PPI_LUMBER',
+    'PCU327320327320': 'PPI_CONCRETE',
+    'HOUST': 'HOUSING_STARTS',
+    'CPIAUCSL': 'CPI_ALL',
+    'FEDFUNDS': 'FED_FUNDS_RATE'
 }
 
 # --- FUNCTIONS ---
@@ -37,7 +29,7 @@ def fetch_series_data(series_id, api_key):
     print(f"Fetching data for series: {series_id}...")
     url = f"https://api.stlouisfed.org/fred/series/observations?series_id={series_id}&api_key={api_key}&file_type=json"
     response = requests.get(url)
-    response.raise_for_status()  # Raise an exception for bad status codes
+    response.raise_for_status()
     
     data = response.json()
     observations = data.get('observations', [])
@@ -49,36 +41,45 @@ def fetch_series_data(series_id, api_key):
     df = pd.DataFrame(observations)
     df = df[['date', 'value']]
     df['date'] = pd.to_datetime(df['date'])
-    # FRED uses '.' to represent missing data, convert to numeric and handle errors
     df['value'] = pd.to_numeric(df['value'], errors='coerce')
-    df.dropna(inplace=True) # Drop rows where value could not be converted
+    df.dropna(inplace=True)
     return df
 
 def save_to_db(df, table_name, engine):
-    """Saves a DataFrame to the database, ensuring idempotency."""
+    """Creates the table if needed and saves the DataFrame, all in one transaction."""
     with engine.connect() as connection:
         # This 'begin()' block automatically handles the transaction.
-        # It will COMMIT on success or ROLLBACK on an error.
         with connection.begin() as transaction:
+            # 1. Ensure the table exists (moved logic here)
+            print(f"Ensuring table '{table_name}' exists...")
+            connection.execute(text(f"""
+                CREATE TABLE IF NOT EXISTS {table_name} (
+                    date DATE NOT NULL,
+                    value DOUBLE PRECISION,
+                    series_id TEXT NOT NULL,
+                    source TEXT,
+                    PRIMARY KEY (series_id, date)
+                );
+            """))
+
+            # 2. Delete old data for the series being ingested
             for series_id in df['series_id'].unique():
                 print(f"Deleting old data for {series_id}...")
                 connection.execute(text(f"DELETE FROM {table_name} WHERE series_id = :series_id"), {'series_id': series_id})
 
+            # 3. Insert the new data
             print("Inserting new data...")
             df.to_sql(table_name, connection, if_exists='append', index=False)
-
+            
     print("Data insertion complete and transaction committed.")
 
 # --- MAIN EXECUTION ---
 if __name__ == "__main__":
     print("Starting data ingestion process...")
     
-    # Create a SQLAlchemy engine to connect to the database
     engine = create_engine(DATABASE_URL)
-    
     all_series_df = pd.DataFrame()
 
-    # Loop through each series, fetch the data, and append it to one big DataFrame
     for fred_code, our_id in SERIES_TO_FETCH.items():
         try:
             series_df = fetch_series_data(fred_code, FRED_API_KEY)
@@ -91,8 +92,8 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"An unexpected error occurred for {fred_code}: {e}")
 
-    # Save the combined DataFrame to the database
     if not all_series_df.empty:
+        # The save_to_db function now handles table creation
         save_to_db(all_series_df, 'raw_series', engine)
     else:
         print("No data was fetched. Database not updated.")
