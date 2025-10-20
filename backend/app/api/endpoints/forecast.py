@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException
 from app.schemas.forecasting import ForecastResponse
 from app.services.forecasting import generate_forecast
 from app.database import get_available_materials
+from app.database.crud_forecast import get_historical_data
 
 # --- Router and Redis Connection ---
 router = APIRouter()
@@ -24,6 +25,15 @@ def get_materials_endpoint():
     if not materials:
         raise HTTPException(status_code=500, detail="Could not retrieve materials from database.")
     return materials
+
+@router.get("/historical-data/{material_id}", tags=["Forecasting"])
+def get_historical_data_endpoint(material_id: str):
+    """Endpoint to fetch historical data for a given material."""
+    data = get_historical_data(series_id=material_id)
+    if not data:
+        raise HTTPException(status_code=404, detail=f"No historical data found for {material_id}")
+    return data
+
 
 @router.get("/forecast", tags=["Forecasting"], response_model=ForecastResponse)
 def get_forecast_endpoint(material_id: str, horizon: int = 12):

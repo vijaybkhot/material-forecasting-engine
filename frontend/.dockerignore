@@ -1,0 +1,41 @@
+# Node modules (will be installed in container)
+node_modules
+
+# Next.js build artifacts (will be generated in container)
+.next
+
+# Local environment files
+.env.local
+.env.*.local
+
+# Git and version control
+.git
+.gitignore
+
+# IDE and editor files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Package manager lock files (optional - keep if you want consistency)
+# package-lock.json
+# yarn.lock
+
+# OS files
+Thumbs.db
+
+# Testing and coverage
+coverage
+.nyc_output
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Dependencies cache
+.npm
+.yarn/cache

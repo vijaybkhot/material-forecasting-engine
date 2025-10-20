@@ -1,7 +1,25 @@
 from fastapi import FastAPI
 from app.api.endpoints import forecast
+from fastapi.middleware.cors import CORSMiddleware
+
 
 app = FastAPI(title="Contech Forecasting API", version="1.0")
+
+# --- CORS (Cross-Origin Resource Sharing) Configuration ---
+# Define the list of origins that are allowed to make requests to this API.
+# In development, this is your frontend's address.
+origins = [
+    "http://localhost:3000",
+]
+
+# Add the CORSMiddleware to the application
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,  # Allow origins listed above
+    allow_credentials=True, # Allow cookies to be included in requests
+    allow_methods=["*"],    # Allow all methods (GET, POST, etc.)
+    allow_headers=["*"],    # Allow all headers
+)
 
 # Include the forecasting router
 app.include_router(forecast.router)
