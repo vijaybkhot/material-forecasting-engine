@@ -11,6 +11,7 @@ import {
   Legend,
   CartesianGrid,
 } from "recharts";
+import type { TooltipProps } from "recharts";
 
 interface DataPoint {
   date: string;
@@ -26,6 +27,9 @@ interface ForecastChartProps {
   forecastData: ForecastPoint[];
   materialId: string;
 }
+
+type RechartsTooltipValue = number | string | Array<number | string>;
+type RechartsTooltip = TooltipProps<RechartsTooltipValue, string>;
 
 // Helper to format date strings to "Mon YYYY" or "Month YYYY"
 const formatMonthYearShort = (isoDate: string) => {
@@ -53,7 +57,11 @@ const formatMonthYearLong = (isoDate: string) => {
 const formatNumber = (v: number | string) => {
   if (typeof v === "number")
     return v.toLocaleString(undefined, { maximumFractionDigits: 2 });
-  return v;
+  // if it's a string that parses to a number, format it
+  const n = Number(v);
+  if (!Number.isNaN(n))
+    return n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  return String(v);
 };
 
 // Helper to merge two series into one data array keyed by date
@@ -104,62 +112,72 @@ export default function ForecastChart({
     Math.floor(Math.max(1, data.length / targetTicks)) - 1
   );
 
+  // Properly typed tooltip formatters using Recharts types
+  const tooltipLabelFormatter: NonNullable<
+    RechartsTooltip["labelFormatter"]
+  > = (label) => String(formatMonthYearLong(String(label ?? "")));
+
+  const tooltipFormatter: NonNullable<RechartsTooltip["formatter"]> = (
+    value
+  ) => {
+    // value can sometimes be an array (stacked series), so handle that
+    let valToFormat: number | string = "";
+    if (Array.isArray(value)) {
+      valToFormat = value[0] ?? "";
+    } else {
+      valToFormat = (value ?? "") as number | string;
+    }
+    return formatNumber(valToFormat);
+  };
+
   return (
-    <div style={{ width: "100%", height: 480 }}>
-      <ResponsiveContainer>
-        <LineChart data={data}>
-          <CartesianGrid stroke="#4b5563" />
-          <XAxis
-            dataKey="date"
-            tick={{ fill: "#d1d5db" }}
-            tickFormatter={formatMonthYearShort}
-            interval={interval}
-            minTickGap={20}
-          />
-          <YAxis tick={{ fill: "#d1d5db" }} />
-          <Tooltip
-            // labelFormatter shows the x value (we format to "Month Year")
-            labelFormatter={(label) =>
-              String(formatMonthYearLong(String(label)))
-            }
-            // formatter shows the value and we provide a custom label
-            formatter={(value: any, name: any) => {
-              const label =
-                name === "historical"
-                  ? "Historical"
-                  : name === "forecast"
-                  ? "Forecast"
-                  : name;
-              return [formatNumber(Number(value)), label];
-            }}
-            // style the tooltip box to match dark theme
-            wrapperStyle={{
-              backgroundColor: "#111827",
-              borderRadius: 8,
-              border: "1px solid #374151",
-              color: "#d1d5db",
-            }}
-            labelStyle={{ color: "#9ca3af" }}
-            contentStyle={{ backgroundColor: "#0b1220", borderRadius: 6 }}
-          />
-          <Legend verticalAlign="top" align="right" />
-          <Line
-            type="monotone"
-            dataKey="historical"
-            name="Historical Data"
-            stroke="#1f77b4"
-            dot={false}
-          />
-          <Line
-            type="monotone"
-            dataKey="forecast"
-            name="Forecast"
-            stroke="#ff7f0e"
-            strokeDasharray="4 4"
-            dot={false}
-          />
-        </LineChart>
-      </ResponsiveContainer>
+    <div>
+      {/* Use materialId so it is not unused; small title above the chart */}
+      <h3 className="text-gray-200 mb-2">Price Forecast for {materialId}</h3>
+
+      <div style={{ width: "100%", height: 480 }}>
+        <ResponsiveContainer>
+          <LineChart data={data}>
+            <CartesianGrid stroke="#4b5563" />
+            <XAxis
+              dataKey="date"
+              tick={{ fill: "#d1d5db" }}
+              tickFormatter={formatMonthYearShort}
+              interval={interval}
+              minTickGap={20}
+            />
+            <YAxis tick={{ fill: "#d1d5db" }} />
+            <Tooltip
+              labelFormatter={tooltipLabelFormatter}
+              formatter={tooltipFormatter}
+              wrapperStyle={{
+                backgroundColor: "#111827",
+                borderRadius: 8,
+                border: "1px solid #374151",
+                color: "#d1d5db",
+              }}
+              labelStyle={{ color: "#9ca3af" }}
+              contentStyle={{ backgroundColor: "#0b1220", borderRadius: 6 }}
+            />
+            <Legend verticalAlign="top" align="right" />
+            <Line
+              type="monotone"
+              dataKey="historical"
+              name="Historical Data"
+              stroke="#1f77b4"
+              dot={false}
+            />
+            <Line
+              type="monotone"
+              dataKey="forecast"
+              name="Forecast"
+              stroke="#ff7f0e"
+              strokeDasharray="4 4"
+              dot={false}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }
