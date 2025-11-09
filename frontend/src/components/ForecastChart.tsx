@@ -1,14 +1,21 @@
 "use client";
-import dynamic from "next/dynamic";
 
-const Plot = dynamic(() => import("react-plotly.js"), { ssr: false });
+import React, { useMemo } from "react";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Legend,
+  CartesianGrid,
+} from "recharts";
 
-// Define types for our data points for better type safety
 interface DataPoint {
   date: string;
   value: number;
 }
-
 interface ForecastPoint {
   date: string;
   forecast: number;
@@ -20,12 +27,67 @@ interface ForecastChartProps {
   materialId: string;
 }
 
+// Helper to format date strings to "Mon YYYY" or "Month YYYY"
+const formatMonthYearShort = (isoDate: string) => {
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      month: "short",
+      year: "numeric",
+    }).format(new Date(isoDate));
+  } catch {
+    return isoDate;
+  }
+};
+const formatMonthYearLong = (isoDate: string) => {
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      month: "long",
+      year: "numeric",
+    }).format(new Date(isoDate));
+  } catch {
+    return isoDate;
+  }
+};
+
+// Helper to format numbers (simple)
+const formatNumber = (v: number | string) => {
+  if (typeof v === "number")
+    return v.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  return v;
+};
+
+// Helper to merge two series into one data array keyed by date
+function mergeSeries(
+  historical: DataPoint[],
+  forecast: ForecastPoint[]
+): Array<{ date: string; historical?: number; forecast?: number }> {
+  const map = new Map<
+    string,
+    { date: string; historical?: number; forecast?: number }
+  >();
+  historical.forEach((d) => {
+    map.set(d.date, { date: d.date, historical: d.value });
+  });
+  forecast.forEach((f) => {
+    const existing = map.get(f.date);
+    if (existing) existing.forecast = f.forecast;
+    else map.set(f.date, { date: f.date, forecast: f.forecast });
+  });
+  // Sort by date (assumes ISO strings; adapt if different)
+  return Array.from(map.values()).sort((a, b) => (a.date < b.date ? -1 : 1));
+}
+
 export default function ForecastChart({
   historicalData,
   forecastData,
   materialId,
 }: ForecastChartProps) {
-  if (!historicalData.length && !forecastData.length) {
+  const data = useMemo(
+    () => mergeSeries(historicalData, forecastData),
+    [historicalData, forecastData]
+  );
+
+  if (!data.length) {
     return (
       <div className="flex items-center justify-center h-96 bg-gray-800 rounded-lg">
         <p className="text-gray-400">
@@ -35,51 +97,69 @@ export default function ForecastChart({
     );
   }
 
-  const historicalTrace = {
-    x: historicalData.map((d) => d.date),
-    y: historicalData.map((d) => d.value),
-    mode: "lines",
-    name: "Historical Data",
-    line: { color: "#1f77b4" }, // Blue
-  };
-
-  const forecastTrace = {
-    x: forecastData.map((d) => d.date),
-    y: forecastData.map((d) => d.forecast),
-    mode: "lines",
-    name: "Forecast",
-    line: { color: "#ff7f0e", dash: "dash" }, // Orange, dashed
-  };
+  // Optional: control tick interval to avoid overcrowding. Choose a target number of ticks.
+  const targetTicks = 6;
+  const interval = Math.max(
+    0,
+    Math.floor(Math.max(1, data.length / targetTicks)) - 1
+  );
 
   return (
-    <Plot
-      data={[historicalTrace, forecastTrace]}
-      layout={{
-        title: `Price Forecast for ${materialId}`,
-        paper_bgcolor: "#1f2937", // gray-800
-        plot_bgcolor: "#1f2937", // gray-800
-        font: {
-          color: "#d1d5db", // gray-300
-        },
-        xaxis: {
-          title: "Date",
-          gridcolor: "#4b5563", // gray-600
-        },
-        yaxis: {
-          title: "Price Index",
-          gridcolor: "#4b5563", // gray-600
-        },
-        legend: {
-          orientation: "h",
-          yanchor: "bottom",
-          y: 1.02,
-          xanchor: "right",
-          x: 1,
-        },
-      }}
-      useResizeHandler={true}
-      className="w-full h-full"
-      style={{ minHeight: "400px" }}
-    />
+    <div style={{ width: "100%", height: 480 }}>
+      <ResponsiveContainer>
+        <LineChart data={data}>
+          <CartesianGrid stroke="#4b5563" />
+          <XAxis
+            dataKey="date"
+            tick={{ fill: "#d1d5db" }}
+            tickFormatter={formatMonthYearShort}
+            interval={interval}
+            minTickGap={20}
+          />
+          <YAxis tick={{ fill: "#d1d5db" }} />
+          <Tooltip
+            // labelFormatter shows the x value (we format to "Month Year")
+            labelFormatter={(label) =>
+              String(formatMonthYearLong(String(label)))
+            }
+            // formatter shows the value and we provide a custom label
+            formatter={(value: any, name: any) => {
+              const label =
+                name === "historical"
+                  ? "Historical"
+                  : name === "forecast"
+                  ? "Forecast"
+                  : name;
+              return [formatNumber(Number(value)), label];
+            }}
+            // style the tooltip box to match dark theme
+            wrapperStyle={{
+              backgroundColor: "#111827",
+              borderRadius: 8,
+              border: "1px solid #374151",
+              color: "#d1d5db",
+            }}
+            labelStyle={{ color: "#9ca3af" }}
+            contentStyle={{ backgroundColor: "#0b1220", borderRadius: 6 }}
+          />
+          <Legend verticalAlign="top" align="right" />
+          <Line
+            type="monotone"
+            dataKey="historical"
+            name="Historical Data"
+            stroke="#1f77b4"
+            dot={false}
+          />
+          <Line
+            type="monotone"
+            dataKey="forecast"
+            name="Forecast"
+            stroke="#ff7f0e"
+            strokeDasharray="4 4"
+            dot={false}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
