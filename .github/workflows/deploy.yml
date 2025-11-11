@@ -1,0 +1,112 @@
+name: Build and Deploy to AWS ECS
+
+on:
+  push:
+    branches:
+      - main # Trigger on pushes to the main branch
+
+env:
+  # === CONFIGURATION - UPDATE THESE ===
+  AWS_REGION: us-east-2
+  ECS_CLUSTER_NAME: constrisk-cluster
+
+  API_ECR_REPO: constrisk-api
+  API_SERVICE_NAME: api-service
+  API_TASK_DEF_NAME: constrisk-api-task
+  API_CONTAINER_NAME: constrisk-api-container
+
+  FRONTEND_ECR_REPO: constrisk-frontend
+  FRONTEND_SERVICE_NAME: frontend-service
+  FRONTEND_TASK_DEF_NAME: constrisk-frontend-task
+  FRONTEND_CONTAINER_NAME: constrisk-frontend-container
+  # === END CONFIGURATION ===
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set Image Tag
+        id: image_tag
+        run: echo "tag=$(echo $GITHUB_SHA | cut -c1-8)" >> $GITHUB_OUTPUT
+
+      # --- Build and Push API ---
+      - name: Build, tag, and push API image
+        id: build-api
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          docker build -t $ECR_REGISTRY/${{ env.API_ECR_REPO }}:${{ steps.image_tag.outputs.tag }} ./backend
+          docker push $ECR_REGISTRY/${{ env.API_ECR_REPO }}:${{ steps.image_tag.outputs.tag }}
+          echo "api_image_uri=$ECR_REGISTRY/${{ env.API_ECR_REPO }}:${{ steps.image_tag.outputs.tag }}" >> $GITHUB_OUTPUT
+
+      # --- Build and Push Frontend ---
+      - name: Build, tag, and push Frontend image
+        id: build-frontend
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          docker build -t $ECR_REGISTRY/${{ env.FRONTEND_ECR_REPO }}:${{ steps.image_tag.outputs.tag }} ./frontend
+          docker push $ECR_REGISTRY/${{ env.FRONTEND_ECR_REPO }}:${{ steps.image_tag.outputs.tag }}
+          echo "frontend_image_uri=$ECR_REGISTRY/${{ env.FRONTEND_ECR_REPO }}:${{ steps.image_tag.outputs.tag }}" >> $GITHUB_OUTPUT
+
+      # --- Deploy API ---
+      - name: Download API Task Definition
+        run: |
+          aws ecs describe-task-definition --task-definition ${{ env.API_TASK_DEF_NAME }} \
+          --query taskDefinition > task-definition-api.json
+
+      - name: Fill in new API image in Task Definition
+        id: task-def-api
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition-api.json
+          container-name: ${{ env.API_CONTAINER_NAME }}
+          image: ${{ steps.build-api.outputs.api_image_uri }}
+
+      - name: Deploy API Task Definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def-api.outputs.task-definition }}
+          service: ${{ env.API_SERVICE_NAME }}
+          cluster: ${{ env.ECS_CLUSTER_NAME }}
+          wait-for-service-stability: true
+
+      # --- Deploy Frontend ---
+      - name: Download Frontend Task Definition
+        run: |
+          aws ecs describe-task-definition --task-definition ${{ env.FRONTEND_TASK_DEF_NAME }} \
+          --query taskDefinition > task-definition-frontend.json
+
+      - name: Fill in new Frontend image in Task Definition
+        id: task-def-frontend
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition-frontend.json
+          container-name: ${{ env.FRONTEND_CONTAINER_NAME }}
+          image: ${{ steps.build-frontend.outputs.frontend_image_uri }}
+
+      - name: Deploy Frontend Task Definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def-frontend.outputs.task-definition }}
+          service: ${{ env.FRONTEND_SERVICE_NAME }}
+          cluster: ${{ env.ECS_CLUSTER_NAME }}
+          wait-for-service-stability: true
