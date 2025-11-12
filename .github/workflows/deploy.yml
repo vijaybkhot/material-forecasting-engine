@@ -155,7 +155,7 @@ jobs:
 
       - name: Set Image Tag
         id: image_tag
-        run: echo "tag=$(echo $GITHUB_SHA | cut -c1-8)" >> $GITHUB_OUTPUT
+        run: echo "tag=$(echo $GITHUB_SHA | cut -c1-8)-${GITHUB_RUN_ATTEMPT}" >> $GITHUB_OUTPUT
 
       # --- Build and Push API ---
       - name: Build, tag, and push API image
