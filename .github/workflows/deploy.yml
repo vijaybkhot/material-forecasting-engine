@@ -1,9 +1,13 @@
-name: Build and Deploy to AWS ECS
+name: Lint, Test, and Deploy to AWS ECS
 
 on:
   push:
     branches:
-      - main # Trigger on pushes to the main branch
+      - main # Trigger deploy
+      - "*" # Trigger lint/test on all branches
+  pull_request:
+    branches:
+      - main # Trigger lint/test on PRs to main
 
 env:
   # === CONFIGURATION - UPDATE THESE ===
@@ -19,14 +23,58 @@ env:
   FRONTEND_SERVICE_NAME: frontend-service
   FRONTEND_TASK_DEF_NAME: constrisk-frontend-task
   FRONTEND_CONTAINER_NAME: constrisk-frontend-container
+
+  # URL for the public-facing API Load Balancer
+  FRONTEND_API_URL: http://constrisk-api-lb-1526660755.us-east-2.elb.amazonaws.com
   # === END CONFIGURATION ===
 
 permissions:
   contents: read
 
 jobs:
-  build-and-deploy:
+  lint-and-test:
+    name: Lint & Test
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # --- LINTING ---
+      - name: Lint Backend (Python)
+        run: |
+          echo "Installing backend linting tools..."
+          # Add your linting commands, e.g., pip install ruff && ruff check ./backend
+          echo "Simulating backend lint... OK"
+          # Example: ruff check ./backend
+
+      - name: Lint Frontend (JavaScript/TypeScript)
+        run: |
+          echo "Installing frontend linting tools..."
+          # Add your linting commands, e.g., npm install --prefix ./frontend && npm run lint --prefix ./frontend
+          echo "Simulating frontend lint... OK"
+          # Example: (cd ./frontend && npm ci && npm run lint)
+
+      # --- TESTING ---
+      - name: Test Backend
+        run: |
+          echo "Installing backend test dependencies..."
+          # Add your test commands, e.g., pip install pytest && pytest ./backend
+          echo "Simulating backend tests... OK"
+          # Example: pytest ./backend
+
+      - name: Test Frontend
+        run: |
+          echo "Installing frontend test dependencies..."
+          # Add your test commands, e.g., npm install --prefix ./frontend && npm run test --prefix ./frontend
+          echo "Simulating frontend tests... OK"
+          # Example: (cd ./frontend && npm ci && npm run test)
+
+  build-and-deploy:
+    name: Build & Deploy
+    runs-on: ubuntu-latest
+    # This job only runs on a push to main AND after lint-and-test succeeds
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: lint-and-test
 
     steps:
       - name: Checkout code
@@ -38,6 +86,68 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
+
+      - name: Validate AWS resources (pre-deploy)
+        id: validate-resources
+        env:
+          AWS_REGION: ${{ env.AWS_REGION }}
+          API_ECR_REPO: ${{ env.API_ECR_REPO }}
+          FRONTEND_ECR_REPO: ${{ env.FRONTEND_ECR_REPO }}
+          ECS_CLUSTER_NAME: ${{ env.ECS_CLUSTER_NAME }}
+          API_SERVICE_NAME: ${{ env.API_SERVICE_NAME }}
+          FRONTEND_SERVICE_NAME: ${{ env.FRONTEND_SERVICE_NAME }}
+        run: |
+          set -euo pipefail
+          echo "🔎 Validating AWS resources in region ${AWS_REGION}..."
+
+          # 1) Check ECR repositories exist
+          echo "-> Checking ECR repositories: ${API_ECR_REPO}, ${FRONTEND_ECR_REPO}"
+          for repo in "${API_ECR_REPO}" "${FRONTEND_ECR_REPO}"; do
+            if ! aws ecr describe-repositories --repository-names "$repo" --region "${AWS_REGION}" >/dev/null 2>&1; then
+              echo "ERROR: ECR repository '$repo' not found in ${AWS_REGION}."
+              echo "Hint: create it manually or add a CI step to create it: aws ecr create-repository --repository-name $repo --region ${AWS_REGION}"
+              exit 1
+            fi
+          done
+          echo "  OK: ECR repos found."
+
+          # 2) Check ECS cluster exists and is ACTIVE
+          echo "-> Checking ECS cluster: ${ECS_CLUSTER_NAME}"
+          cluster_status=$(aws ecs describe-clusters --clusters "${ECS_CLUSTER_NAME}" --region "${AWS_REGION}" --query "clusters[0].status" --output text || echo "MISSING")
+          if [ "${cluster_status}" = "MISSING" ] || [ "${cluster_status}" = "None" ]; then
+            echo "ERROR: ECS cluster '${ECS_CLUSTER_NAME}' not found in ${AWS_REGION}."
+            exit 1
+          fi
+          echo "  OK: ECS cluster '${ECS_CLUSTER_NAME}' status=${cluster_status}"
+
+          # 3) Check ECS services exist (reports failures array if missing)
+          echo "-> Checking ECS services: ${API_SERVICE_NAME}, ${FRONTEND_SERVICE_NAME}"
+          # This is the simplified, jq-free check
+          fail_count=$(aws ecs describe-services --cluster "${ECS_CLUSTER_NAME}" --services "${API_SERVICE_NAME}" "${FRONTEND_SERVICE_NAME}" --region "${AWS_REGION}" --query 'length(failures)' --output text)
+          if [ "${fail_count}" != "0" ]; then
+            echo "ERROR: One or more ECS services are missing or invalid in cluster '${ECS_CLUSTER_NAME}'."
+            echo "Details:"
+            aws ecs describe-services --cluster "${ECS_CLUSTER_NAME}" --services "${API_SERVICE_NAME}" "${FRONTEND_SERVICE_NAME}" --region "${AWS_REGION}" --query 'failures' --output text
+            exit 1
+          fi
+          echo "  OK: ECS services exist."
+
+          # 4) Check Secrets Manager entries referenced in task-defs exist.
+          echo "-> Checking Secrets Manager secrets (from task definitions)"
+          secrets_to_check=(
+            "arn:aws:secretsmanager:${AWS_REGION}:741448945941:secret:constrisk-db-url-LBm6wW"
+            "arn:aws:secretsmanager:${AWS_REGION}:741448945941:secret:constrisk-redis-url-gqkTPO"
+          )
+          for secret in "${secrets_to_check[@]}"; do
+            if ! aws secretsmanager describe-secret --secret-id "${secret}" --region "${AWS_REGION}" >/dev/null 2>&1; then
+              echo "ERROR: Secrets Manager secret '${secret}' not found or inaccessible in ${AWS_REGION}."
+              echo "Hint: ensure the secret exists and the GitHub Action credentials can access it."
+              exit 1
+            fi
+          done
+          echo "  OK: Secrets Manager secrets found."
+
+          echo "✅ Pre-deploy validation passed."
 
       - name: Log in to Amazon ECR
         id: login-ecr
@@ -68,16 +178,11 @@ jobs:
           echo "frontend_image_uri=$ECR_REGISTRY/${{ env.FRONTEND_ECR_REPO }}:${{ steps.image_tag.outputs.tag }}" >> $GITHUB_OUTPUT
 
       # --- Deploy API ---
-      - name: Download API Task Definition
-        run: |
-          aws ecs describe-task-definition --task-definition ${{ env.API_TASK_DEF_NAME }} \
-          --query taskDefinition > task-definition-api.json
-
       - name: Fill in new API image in Task Definition
         id: task-def-api
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          task-definition: task-definition-api.json
+          task-definition: aws/task-definition-api.json
           container-name: ${{ env.API_CONTAINER_NAME }}
           image: ${{ steps.build-api.outputs.api_image_uri }}
 
@@ -90,16 +195,17 @@ jobs:
           wait-for-service-stability: true
 
       # --- Deploy Frontend ---
-      - name: Download Frontend Task Definition
+      - name: Substitute API URL in Frontend Task Definition
+        id: substitute-url
         run: |
-          aws ecs describe-task-definition --task-definition ${{ env.FRONTEND_TASK_DEF_NAME }} \
-          --query taskDefinition > task-definition-frontend.json
+          # Find and replace the placeholder with the env variable
+          sed -i 's|NEXT_PUBLIC_API_URL_PLACEHOLDER|${{ env.FRONTEND_API_URL }}|g' aws/task-definition-frontend.json
 
       - name: Fill in new Frontend image in Task Definition
         id: task-def-frontend
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          task-definition: task-definition-frontend.json
+          task-definition: aws/task-definition-frontend.json
           container-name: ${{ env.FRONTEND_CONTAINER_NAME }}
           image: ${{ steps.build-frontend.outputs.frontend_image_uri }}
 
