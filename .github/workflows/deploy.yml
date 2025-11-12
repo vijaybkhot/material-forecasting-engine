@@ -135,7 +135,7 @@ jobs:
           # 4) Check Secrets Manager entries referenced in task-defs exist.
           echo "-> Checking Secrets Manager secrets (from task definitions)"
           secrets_to_check=(
-            "arn:aws:secretsmanager:${AWS_REGION}:741448945941:secret:constrisk-db-url-LBm6wW"
+            "arn:aws:secretsmanager:${AWS_REGION}:741448945941:secret:constrisk-db-url-LBm6uW"
             "arn:aws:secretsmanager:${AWS_REGION}:741448945941:secret:constrisk-redis-url-gqkTPO"
           )
           for secret in "${secrets_to_check[@]}"; do
