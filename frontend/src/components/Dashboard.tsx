@@ -16,7 +16,7 @@ interface ForecastDataPoint {
 }
 
 // Get API URL from environment variables, with a fallback for safety
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export default function Dashboard() {
   // State management for the dashboard

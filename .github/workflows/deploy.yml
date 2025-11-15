@@ -39,35 +39,60 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # --- Setup Python ---
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11" # Match your Dockerfile
+
+      - name: Install Python dependencies
+        run: |
+          pip install ruff pytest
+          # You might also need to install your app's dependencies
+          # pip install -r backend/requirements.txt
+
+      # --- Setup Node.js ---
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18" # Match your Dockerfile
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Frontend dependencies
+        run: npm install --prefix ./frontend
+
       # --- LINTING ---
       - name: Lint Backend (Python)
         run: |
-          echo "Installing backend linting tools..."
-          # Add your linting commands, e.g., pip install ruff && ruff check ./backend
-          echo "Simulating backend lint... OK"
+          echo "Linting backend..."
+          # REPLACE the echo command below with your real lint command
           # Example: ruff check ./backend
+          echo "Simulating backend lint... OK"
 
       - name: Lint Frontend (JavaScript/TypeScript)
         run: |
-          echo "Installing frontend linting tools..."
-          # Add your linting commands, e.g., npm install --prefix ./frontend && npm run lint --prefix ./frontend
+          echo "Linting frontend..."
+          # REPLACE the echo command below with your real lint command
+          # This assumes you have a "lint" script in your package.json
+          # Example: npm run lint --prefix ./frontend
           echo "Simulating frontend lint... OK"
-          # Example: (cd ./frontend && npm ci && npm run lint)
 
       # --- TESTING ---
       - name: Test Backend
         run: |
-          echo "Installing backend test dependencies..."
-          # Add your test commands, e.g., pip install pytest && pytest ./backend
-          echo "Simulating backend tests... OK"
+          echo "Testing backend..."
+          # REPLACE the echo command below with your real test command
           # Example: pytest ./backend
+          echo "Simulating backend tests... OK"
 
       - name: Test Frontend
         run: |
-          echo "Installing frontend test dependencies..."
-          # Add your test commands, e.g., npm install --prefix ./frontend && npm run test --prefix ./frontend
+          echo "Testing frontend..."
+          # REPLACE the echo command below with your real test command
+          # This assumes you have a "test" script in your package.json
+          # Example: npm run test --prefix ./frontend
           echo "Simulating frontend tests... OK"
-          # Example: (cd ./frontend && npm ci && npm run test)
 
   build-and-deploy:
     name: Build & Deploy
@@ -137,6 +162,7 @@ jobs:
           secrets_to_check=(
             "arn:aws:secretsmanager:${AWS_REGION}:741448945941:secret:constrisk-db-url-LBm6uW"
             "arn:aws:secretsmanager:${AWS_REGION}:741448945941:secret:constrisk-redis-url-gqkTPO"
+            "arn:aws:secretsmanager:${AWS_REGION}:741448945941:secret:FRED_API_KEY-uycUK9"
           )
           for secret in "${secrets_to_check[@]}"; do
             if ! aws secretsmanager describe-secret --secret-id "${secret}" --region "${AWS_REGION}" >/dev/null 2>&1; then
