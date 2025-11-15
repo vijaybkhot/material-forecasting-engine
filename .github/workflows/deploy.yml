@@ -163,7 +163,8 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
-          docker build -t $ECR_REGISTRY/${{ env.API_ECR_REPO }}:${{ steps.image_tag.outputs.tag }} ./backend
+          # Build using repo ROOT as context so Dockerfile can access backend/ and ml/ paths
+          docker build -t $ECR_REGISTRY/${{ env.API_ECR_REPO }}:${{ steps.image_tag.outputs.tag }} -f backend/Dockerfile .
           docker push $ECR_REGISTRY/${{ env.API_ECR_REPO }}:${{ steps.image_tag.outputs.tag }}
           echo "api_image_uri=$ECR_REGISTRY/${{ env.API_ECR_REPO }}:${{ steps.image_tag.outputs.tag }}" >> $GITHUB_OUTPUT
 
