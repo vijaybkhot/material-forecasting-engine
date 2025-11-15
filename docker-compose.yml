@@ -1,58 +1,178 @@
-# version: "3.8"
+name: Build and Deploy to AWS ECS
 
-services:
-  # Python FastAPI Backend
-  api:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    ports:
-      - "8080:8000"
-    volumes:
-      - ./backend:/app
-      - ./.env:/app/.env:ro
-      - ./ml:/app/ml:ro
-    environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-    depends_on:
-      - db
+on:
+  push:
+    branches:
+      - main # Trigger on pushes to the main branch
 
-  # Next.js Frontend
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-      - /app/.next
-    environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8080
+env:
+  # === CONFIGURATION - UPDATE THESE ===
+  AWS_REGION: us-east-2
+  ECS_CLUSTER_NAME: constrisk-cluster
 
-  # PostgreSQL Database
-  db:
-    image: postgres:15
-    environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
-    ports:
-      - "5433:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+  API_ECR_REPO: constrisk-api
+  API_SERVICE_NAME: api-service
+  API_TASK_DEF_NAME: constrisk-api-task
+  API_CONTAINER_NAME: constrisk-api-container
 
-  # Redis Cache
-  redis:
-    image: redis:7
-    ports:
-      - "6379:6379"
+  FRONTEND_ECR_REPO: constrisk-frontend
+  FRONTEND_SERVICE_NAME: frontend-service
+  FRONTEND_TASK_DEF_NAME: constrisk-frontend-task
+  FRONTEND_CONTAINER_NAME: constrisk-frontend-container
+  # === END CONFIGURATION ===
 
-volumes:
-  postgres_data:
+permissions:
+  contents: read
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Validate AWS resources (pre-deploy)
+        id: validate-resources
+        env:
+          AWS_REGION: ${{ env.AWS_REGION }}
+          API_ECR_REPO: ${{ env.API_ECR_REPO }}
+          FRONTEND_ECR_REPO: ${{ env.FRONTEND_ECR_REPO }}
+          ECS_CLUSTER_NAME: ${{ env.ECS_CLUSTER_NAME }}
+          API_SERVICE_NAME: ${{ env.API_SERVICE_NAME }}
+          FRONTEND_SERVICE_NAME: ${{ env.FRONTEND_SERVICE_NAME }}
+        run: |
+          set -euo pipefail
+          echo "🔎 Validating AWS resources in region ${AWS_REGION}..."
+
+          # 1) Check ECR repositories exist
+          echo "-> Checking ECR repositories: ${API_ECR_REPO}, ${FRONTEND_ECR_REPO}"
+          for repo in "${API_ECR_REPO}" "${FRONTEND_ECR_REPO}"; do
+            if ! aws ecr describe-repositories --repository-names "$repo" --region "${AWS_REGION}" >/dev/null 2>&1; then
+              echo "ERROR: ECR repository '$repo' not found in ${AWS_REGION}."
+              echo "Hint: create it manually or add a CI step to create it: aws ecr create-repository --repository-name $repo --region ${AWS_REGION}"
+              exit 1
+            fi
+          done
+          echo "  OK: ECR repos found."
+
+          # 2) Check ECS cluster exists and is ACTIVE
+          echo "-> Checking ECS cluster: ${ECS_CLUSTER_NAME}"
+          cluster_status=$(aws ecs describe-clusters --clusters "${ECS_CLUSTER_NAME}" --region "${AWS_REGION}" --query "clusters[0].status" --output text || echo "MISSING")
+          if [ "${cluster_status}" = "MISSING" ] || [ "${cluster_status}" = "None" ]; then
+            echo "ERROR: ECS cluster '${ECS_CLUSTER_NAME}' not found in ${AWS_REGION}."
+            exit 1
+          fi
+          echo "  OK: ECS cluster '${ECS_CLUSTER_NAME}' status=${cluster_status}"
+
+          # 3) Check ECS services exist (reports failures array if missing)
+          echo "-> Checking ECS services: ${API_SERVICE_NAME}, ${FRONTEND_SERVICE_NAME}"
+          fail_count=$(aws ecs describe-services --cluster "${ECS_CLUSTER_NAME}" --services "${API_SERVICE_NAME}" "${FRONTEND_SERVICE_NAME}" --region "${AWS_REGION}" --query 'length(failures)' --output text)
+          if [ "${fail_count}" != "0" ]; then
+            echo "ERROR: One or more ECS services are missing or invalid in cluster '${ECS_CLUSTER_NAME}'."
+            echo "Details:"
+            aws ecs describe-services --cluster "${ECS_CLUSTER_NAME}" --services "${API_SERVICE_NAME}" "${FRONTEND_SERVICE_NAME}" --region "${AWS_REGION}" --output json | jq -r '.failures|@json' || aws ecs describe-services --cluster "${ECS_CLUSTER_NAME}" --services "${API_SERVICE_NAME}" "${FRONTEND_SERVICE_NAME}" --region "${AWS_REGION}" --query 'failures' --output text
+            exit 1
+          fi
+          echo "  OK: ECS services exist."
+
+          # 4) Check Secrets Manager entries referenced in task-defs exist.
+          echo "-> Checking Secrets Manager secrets (from task definitions)"
+          secrets_to_check=(
+            "arn:aws:secretsmanager:${AWS_REGION}:741448945941:secret:constrisk-db-url-LBm6wW"
+            "arn:aws:secretsmanager:${AWS_REGION}:741448945941:secret:constrisk-redis-url-gqkTPO"
+            "arn:aws:secretsmanager:${AWS_REGION}:741448945941:secret:FRED_API_KEY-uycUK9"
+          )
+          for secret in "${secrets_to_check[@]}"; do
+            if ! aws secretsmanager describe-secret --secret-id "${secret}" --region "${AWS_REGION}" >/dev/null 2>&1; then
+              echo "ERROR: Secrets Manager secret '${secret}' not found or inaccessible in ${AWS_REGION}."
+              echo "Hint: ensure the secret exists and the GitHub Action credentials can access it."
+              exit 1
+            fi
+          done
+          echo "  OK: Secrets Manager secrets found."
+
+          echo "✅ Pre-deploy validation passed."
+
+      - name: Log in to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set Image Tag
+        id: image_tag
+        run: echo "tag=$(echo $GITHUB_SHA | cut -c1-8)-${GITHUB_RUN_ATTEMPT}" >> $GITHUB_OUTPUT
+
+      # --- Build and Push API ---
+      - name: Build, tag, and push API image
+        id: build-api
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          # THIS LINE IS THE FIX:
+          # -f backend/Dockerfile tells Docker where the file is.
+          # . (the dot) tells Docker to use the ROOT folder as the context.
+          docker build -t $ECR_REGISTRY/${{ env.API_ECR_REPO }}:${{ steps.image_tag.outputs.tag }} -f backend/Dockerfile .
+          docker push $ECR_REGISTRY/${{ env.API_ECR_REPO }}:${{ steps.image_tag.outputs.tag }}
+          echo "api_image_uri=$ECR_REGISTRY/${{ env.API_ECR_REPO }}:${{ steps.image_tag.outputs.tag }}" >> $GITHUB_OUTPUT
+
+      # --- Build and Push Frontend ---
+      - name: Build, tag, and push Frontend image
+        id: build-frontend
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          docker build -t $ECR_REGISTRY/${{ env.FRONTEND_ECR_REPO }}:${{ steps.image_tag.outputs.tag }} ./frontend
+          docker push $ECR_REGISTRY/${{ env.FRONTEND_ECR_REPO }}:${{ steps.image_tag.outputs.tag }}
+          echo "frontend_image_uri=$ECR_REGISTRY/${{ env.FRONTEND_ECR_REPO }}:${{ steps.image_tag.outputs.tag }}" >> $GITHUB_OUTPUT
+
+      # --- Deploy API ---
+      # We no longer download the task definition.
+      # We use the local file from the repo directly.
+
+      - name: Fill in new API image in Task Definition
+        id: task-def-api
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          # Use the local task definition file
+          task-definition: aws/task-definition-api.json
+          container-name: ${{ env.API_CONTAINER_NAME }}
+          image: ${{ steps.build-api.outputs.api_image_uri }}
+
+      - name: Deploy API Task Definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def-api.outputs.task-definition }}
+          service: ${{ env.API_SERVICE_NAME }}
+          cluster: ${{ env.ECS_CLUSTER_NAME }}
+          wait-for-service-stability: true
+
+      # --- Deploy Frontend ---
+      - name: Substitute API URL in Frontend Task Definition
+        id: substitute-url
+        run: |
+          # Find and replace the placeholder with the env variable
+          sed -i 's|NEXT_PUBLIC_API_URL_PLACEHOLDER|${{ env.FRONTEND_API_URL }}|g' aws/task-definition-frontend.json
+
+      - name: Fill in new Frontend image in Task Definition
+        id: task-def-frontend
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          # Use the local task definition file
+          task-definition: aws/task-definition-frontend.json
+          container-name: ${{ env.FRONTEND_CONTAINER_NAME }}
+          image: ${{ steps.build-frontend.outputs.frontend_image_uri }}
+
+      - name: Deploy Frontend Task Definition
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def-frontend.outputs.task-definition }}
+          service: ${{ env.FRONTEND_SERVICE_NAME }}
+          cluster: ${{ env.ECS_CLUSTER_NAME }}
+          wait-for-service-stability: true
