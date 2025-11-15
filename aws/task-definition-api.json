@@ -25,6 +25,10 @@
         {
           "name": "REDIS_URL",
           "valueFrom": "arn:aws:secretsmanager:us-east-2:741448945941:secret:constrisk-redis-url-gqkTPO"
+        },
+        {
+          "name": "FRED_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:us-east-2:741448945941:secret:FRED_API_KEY-uycUK9"
         }
       ],
       "logConfiguration": {
