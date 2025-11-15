@@ -15,8 +15,12 @@ interface ForecastDataPoint {
   forecast: number;
 }
 
-// Get API URL from environment variables, with a fallback for safety
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+// Get API URL from environment variables.
+// In production we *require* NEXT_PUBLIC_API_URL to be set so we never talk to localhost.
+// In development we fall back to the local backend.
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (process.env.NODE_ENV === "development" ? "http://localhost:8000" : "");
 
 export default function Dashboard() {
   // State management for the dashboard

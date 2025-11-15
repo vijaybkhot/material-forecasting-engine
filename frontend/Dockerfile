@@ -5,6 +5,10 @@ WORKDIR /app
 # Ensure deterministic installs (install devDependencies in builder stage)
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Accept API URL at build time so Next.js can bake it into the bundle
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+
 # Install build dependencies
 COPY package*.json ./
 RUN npm ci

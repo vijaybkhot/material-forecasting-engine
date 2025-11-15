@@ -199,8 +199,12 @@ jobs:
         id: build-frontend
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          NEXT_PUBLIC_API_URL: ${{ env.FRONTEND_API_URL }}
         run: |
-          docker build -t $ECR_REGISTRY/${{ env.FRONTEND_ECR_REPO }}:${{ steps.image_tag.outputs.tag }} ./frontend
+          docker build \
+            --build-arg NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
+            -t $ECR_REGISTRY/${{ env.FRONTEND_ECR_REPO }}:${{ steps.image_tag.outputs.tag }} \
+            ./frontend
           docker push $ECR_REGISTRY/${{ env.FRONTEND_ECR_REPO }}:${{ steps.image_tag.outputs.tag }}
           echo "frontend_image_uri=$ECR_REGISTRY/${{ env.FRONTEND_ECR_REPO }}:${{ steps.image_tag.outputs.tag }}" >> $GITHUB_OUTPUT
 

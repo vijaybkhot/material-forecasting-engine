@@ -10,6 +10,7 @@ app = FastAPI(title="Contech Forecasting API", version="1.0")
 # In development, this is your frontend's address.
 origins = [
     "http://localhost:3000",
+    "http://constrisk-frontend-lb-61363355.us-east-2.elb.amazonaws.com",
 ]
 
 # Add the CORSMiddleware to the application
