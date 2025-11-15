@@ -109,7 +109,7 @@ jobs:
         id: image_tag
         run: echo "tag=$(echo $GITHUB_SHA | cut -c1-8)-${GITHUB_RUN_ATTEMPT}" >> $GITHUB_OUTPUT
 
-      # --- Build and Push API ---
+      # --- Build and Push API --- This section has been modified
       - name: Build, tag, and push API image
         id: build-api
         env:
