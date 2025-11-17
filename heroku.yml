@@ -14,7 +14,8 @@ build:
 release:
   # The 'alembic.ini' file is now at the root of the
   # container's /app directory, so we can run this directly.
-  command: sh -c "export PYTHONPATH=/app && alembic upgrade head && python ml/scripts/ingest_data.py"
+  command:
+    - sh -c "export PYTHONPATH=/app && alembic upgrade head && python ml/scripts/ingest_data.py"
   image: web
 
 # 4. RUN PHASE: (This is how your app starts)
