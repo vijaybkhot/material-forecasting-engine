@@ -1,3 +1,4 @@
+import os
 import redis
 import json
 import traceback
@@ -9,14 +10,27 @@ from app.database.crud_forecast import get_historical_data
 
 # --- Router and Redis Connection ---
 router = APIRouter()
+redis_url = os.getenv("REDISCLOUD_URL") or os.getenv("REDIS_URL")
+redis_client = None
 
-try:
-    redis_client = redis.Redis(host='redis', port=6379, db=0, decode_responses=True)
-    redis_client.ping()
-    print("✅ Redis connection successful in API.")
-except redis.exceptions.ConnectionError:
-    print("⚠️ Could not connect to Redis. Caching will be disabled.")
-    redis_client = None
+if redis_url:
+    try:
+        redis_client = redis.from_url(redis_url, decode_responses=True)
+        redis_client.ping()
+        print("✅ Successfully connected to Redis.")
+    except redis.exceptions.ConnectionError as e:
+        print(f"⚠️ Could not connect to Redis: {e}. Caching will be disabled.")
+        redis_client = None
+else:
+    print("⚠️ REDIS_URL not set. Caching will be disabled.")
+
+# try:
+#     redis_client = redis.Redis(host='redis', port=6379, db=0, decode_responses=True)
+#     redis_client.ping()
+#     print("✅ Redis connection successful in API.")
+# except redis.exceptions.ConnectionError:
+#     print("⚠️ Could not connect to Redis. Caching will be disabled.")
+#     redis_client = None
 
 # --- API Endpoints ---
 @router.get("/materials", tags=["Forecasting"], response_model=list[str])

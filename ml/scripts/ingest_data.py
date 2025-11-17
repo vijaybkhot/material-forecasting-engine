@@ -6,8 +6,9 @@ from dotenv import load_dotenv
 from pathlib import Path
 
 # --- CONFIGURATION ---
-project_root = Path(__file__).resolve().parents[2]
-dotenv_path = project_root / '.env'
+# project_root = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path("/app")
+dotenv_path = PROJECT_ROOT / '.env'
 load_dotenv(dotenv_path=dotenv_path)
 
 DATABASE_URL = os.getenv("DATABASE_URL_ALEMBIC") or os.getenv("DATABASE_URL")
