@@ -10,6 +10,7 @@ release:
   # The 'alembic.ini' file is now at the root of the
   # container's /app directory, so we can run this directly.
   command:
+    - export PYTHONPATH=/app
     - alembic upgrade head
   image: web
 
