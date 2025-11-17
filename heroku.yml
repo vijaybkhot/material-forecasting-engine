@@ -2,33 +2,28 @@
 # We will rely on the Config Vars you set (DATABASE_URL, REDIS_URL, etc.).
 
 # 2. BUILD PHASE:
-# This tells Heroku how to build your application.
+# This file must be in the ROOT of your repository.
+
+# 2. BUILD PHASE:
 build:
   docker:
-    # We define a "web" process.
-    # Heroku will build the Dockerfile located at 'backend/Dockerfile'.
-    # CRITICAL: Heroku runs this build from the ROOT of your repo,
-    # so your Dockerfile's 'COPY ml /app/ml' command will work.
+    # This is correct. It tells Heroku to build the Dockerfile
+    # from the 'backend' folder and call it 'web'.
     web: backend/Dockerfile
-  config:
-    # This passes your Heroku Config Vars to the build process.
-    # This isn't strictly necessary since you're not using NEXT_PUBLIC_API_URL
-    # at build time, but it's good practice.
-    - FRED_API_KEY
-    - PROJECT_ROOT
+  # The incorrect 'config:' block has been removed.
+  # Runtime config vars (DATABASE_URL, FRED_API_KEY) are automatically
+  # available to the 'release' and 'run' commands.
 
 # 3. RELEASE PHASE: (This is for database migrations)
-# Before Heroku switches to your new code, it will run this command.
+# This will run *before* your app starts to set up the database.
 release:
-  # The 'alembic.ini' file is in the 'backend' folder, so we cd in first.
-  # This command runs your database migrations to create the 'raw_series'
-  # table (and any other tables) before the API starts.
+  # This command runs your Alembic migrations
   command:
     - cd backend && alembic upgrade head
-  # It runs this using the 'web' container image.
   image: web
 
-# 4. RUN PHASE:
-# This tells Heroku how to run your application.
+# 4. RUN PHASE: (This is how your app starts)
 run:
+  # This command starts your "web" dyno (the Eco plan dyno).
+  # It correctly uses the $PORT variable provided by Heroku.
   web: uvicorn app.main:app --host 0.0.0.0 --port $PORT
