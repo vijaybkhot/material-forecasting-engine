@@ -10,7 +10,9 @@ app = FastAPI(title="Contech Forecasting API", version="1.0")
 # In development, this is your frontend's address.
 origins = [
     "http://localhost:3000",
-    "http://constrisk-frontend-lb-61363355.us-east-2.elb.amazonaws.com",
+    "https://material-forecasting-engine-6nnw-r0kv1czme-vijay-khots-projects.vercel.app",
+    "https://material-forecasting-engine-6nnw.vercel.app/",
+    "https://material-forecasting-engine-6nnw-git-main-vijay-khots-projects.vercel.app/",
 ]
 
 # Add the CORSMiddleware to the application
