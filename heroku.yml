@@ -1,0 +1,34 @@
+# 1. SETUP PHASE: (Optional)
+# We will rely on the Config Vars you set (DATABASE_URL, REDIS_URL, etc.).
+
+# 2. BUILD PHASE:
+# This tells Heroku how to build your application.
+build:
+  docker:
+    # We define a "web" process.
+    # Heroku will build the Dockerfile located at 'backend/Dockerfile'.
+    # CRITICAL: Heroku runs this build from the ROOT of your repo,
+    # so your Dockerfile's 'COPY ml /app/ml' command will work.
+    web: backend/Dockerfile
+  config:
+    # This passes your Heroku Config Vars to the build process.
+    # This isn't strictly necessary since you're not using NEXT_PUBLIC_API_URL
+    # at build time, but it's good practice.
+    - FRED_API_KEY
+    - PROJECT_ROOT
+
+# 3. RELEASE PHASE: (This is for database migrations)
+# Before Heroku switches to your new code, it will run this command.
+release:
+  # The 'alembic.ini' file is in the 'backend' folder, so we cd in first.
+  # This command runs your database migrations to create the 'raw_series'
+  # table (and any other tables) before the API starts.
+  command:
+    - cd backend && alembic upgrade head
+  # It runs this using the 'web' container image.
+  image: web
+
+# 4. RUN PHASE:
+# This tells Heroku how to run your application.
+run:
+  web: uvicorn app.main:app --host 0.0.0.0 --port $PORT

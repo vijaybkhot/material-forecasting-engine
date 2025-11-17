@@ -19,4 +19,5 @@ COPY ml /app/ml
 RUN test -f /app/ml/models/champion_forecasting_model_manifest.json || echo "[WARN] Model manifest missing; ensure ml/models is populated before deploy." && ls -1 /app/ml/models || true
 
 EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
