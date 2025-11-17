@@ -1,15 +1,15 @@
-from logging.config import fileConfig
-
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
-
 import os
 import sys
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+from logging.config import fileConfig
 
+from sqlalchemy import engine_from_config, pool
+from alembic import context
 from dotenv import load_dotenv
 
-from alembic import context
+# Make sure /app/backend is on the path when running inside the container
+BASE_DIR = os.path.dirname(os.path.dirname(__file__))  # /app/backend
+sys.path.append(BASE_DIR)
+
 from models import Base
 from app.core.config import DATABASE_URL
 
@@ -19,17 +19,17 @@ from app.core.config import DATABASE_URL
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
-load_dotenv(dotenv_path='../.env')
 
-# Prefer the DATABASE_URL that Heroku (or the environment) gives us.
-# Fall back to DATABASE_URL from app.core.config if needed.
+# Load local .env in dev if present (optional)
+load_dotenv(dotenv_path=os.path.join(BASE_DIR, "..", ".env"))
+
+# Prefer DATABASE_URL from env (Heroku), fall back to app config
 db_url = os.getenv("DATABASE_URL") or DATABASE_URL
-
-# Normalize deprecated postgres:// to postgresql:// for SQLAlchemy
 if db_url:
     db_url = db_url.replace("postgres://", "postgresql://", 1)
 
 config.set_main_option("sqlalchemy.url", db_url)
+
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
