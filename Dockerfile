@@ -10,6 +10,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the app code from the backend/app subfolder
 COPY backend/app /app/app
 
+# Copy models.py (needed by Alembic)
+COPY backend/models.py /app/models.py
+
 # Copy alembic files from the backend/ subfolder
 COPY backend/alembic /app/alembic
 COPY backend/alembic.ini /app/alembic.ini

@@ -11,7 +11,7 @@ PROJECT_ROOT = Path("/app")
 dotenv_path = PROJECT_ROOT / '.env'
 load_dotenv(dotenv_path=dotenv_path)
 
-DATABASE_URL = os.getenv("DATABASE_URL_ALEMBIC") or os.getenv("DATABASE_URL")
+DATABASE_URL = os.getenv("DATABASE_URL")
 FRED_API_KEY = os.getenv("FRED_API_KEY")
 
 SERIES_TO_FETCH = {
