@@ -1,29 +1,18 @@
-# 1. SETUP PHASE: (Optional)
-# We will rely on the Config Vars you set (DATABASE_URL, REDIS_URL, etc.).
-
-# 2. BUILD PHASE:
-# This file must be in the ROOT of your repository.
-
+# heroku.yml
 # 2. BUILD PHASE:
 build:
   docker:
-    # This is correct. It tells Heroku to build the Dockerfile
-    # from the 'backend' folder and call it 'web'.
-    web: backend/Dockerfile
-  # The incorrect 'config:' block has been removed.
-  # Runtime config vars (DATABASE_URL, FRED_API_KEY) are automatically
-  # available to the 'release' and 'run' commands.
+    # We now point to the single Dockerfile at the project root
+    web: Dockerfile
 
 # 3. RELEASE PHASE: (This is for database migrations)
-# This will run *before* your app starts to set up the database.
 release:
-  # This command runs your Alembic migrations
+  # The 'alembic.ini' file is now at the root of the
+  # container's /app directory, so we can run this directly.
   command:
-    - cd backend && alembic upgrade head
+    - alembic upgrade head
   image: web
 
 # 4. RUN PHASE: (This is how your app starts)
 run:
-  # This command starts your "web" dyno (the Eco plan dyno).
-  # It correctly uses the $PORT variable provided by Heroku.
   web: uvicorn app.main:app --host 0.0.0.0 --port $PORT
