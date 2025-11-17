@@ -12,6 +12,7 @@ release:
   command:
     - export PYTHONPATH=/app
     - alembic upgrade head
+    - python ml/scripts/ingest_data.py
   image: web
 
 # 4. RUN PHASE: (This is how your app starts)

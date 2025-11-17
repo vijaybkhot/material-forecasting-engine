@@ -10,7 +10,7 @@ project_root = Path(__file__).resolve().parents[2]
 dotenv_path = project_root / '.env'
 load_dotenv(dotenv_path=dotenv_path)
 
-DATABASE_URL = os.getenv("DATABASE_URL_ALEMBIC")
+DATABASE_URL = os.getenv("DATABASE_URL_ALEMBIC") or os.getenv("DATABASE_URL")
 FRED_API_KEY = os.getenv("FRED_API_KEY")
 
 SERIES_TO_FETCH = {
