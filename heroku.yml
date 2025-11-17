@@ -1,5 +1,10 @@
 # heroku.yml
 # 2. BUILD PHASE:
+setup:
+  addons:
+    - plan: heroku-postgresql
+      as: DATABASE
+
 build:
   docker:
     # We now point to the single Dockerfile at the project root
