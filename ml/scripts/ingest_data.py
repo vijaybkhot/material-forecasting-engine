@@ -78,7 +78,11 @@ def save_to_db(df, table_name, engine):
 if __name__ == "__main__":
     print("Starting data ingestion process...")
     
-    engine = create_engine(DATABASE_URL)
+    db_url = DATABASE_URL
+    if db_url:
+        db_url = db_url.replace("postgres://", "postgresql://", 1)
+
+    engine = create_engine(db_url)
     all_series_df = pd.DataFrame()
 
     for fred_code, our_id in SERIES_TO_FETCH.items():
