@@ -36,3 +36,4 @@ joblib
 redis
 scikit-learn
 statsmodels
+psycopg2-binary
