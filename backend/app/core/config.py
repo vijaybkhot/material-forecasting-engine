@@ -27,5 +27,14 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     raise ValueError("DATABASE_URL not set in .env file.")
 
-MODEL_PATH = PROJECT_ROOT / "ml/models/champion_forecasting_model.pkl"
-MANIFEST_PATH = PROJECT_ROOT / "ml/models/champion_forecasting_model_manifest.json"
+# MODEL_PATH = PROJECT_ROOT / "ml/models/champion_forecasting_model.pkl"
+# MANIFEST_PATH = PROJECT_ROOT / "ml/models/champion_forecasting_model_manifest.json"
+
+# Dynamic paths based on material ID
+def get_model_paths(material_id: str):
+    """Returns tuple: (model_path, manifest_path)"""
+    base_dir = PROJECT_ROOT / "ml" / "models"
+    return (
+        base_dir / f"{material_id}_model.pkl",
+        base_dir / f"{material_id}_manifest.json"
+    )

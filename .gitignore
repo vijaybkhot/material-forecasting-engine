@@ -208,3 +208,7 @@ __marimo__/
 
 # macOS
 .DS_Store
+
+# Machine Learning Models
+# Large pickle files should not be committed to GitHub
+ml/models/*.pkl

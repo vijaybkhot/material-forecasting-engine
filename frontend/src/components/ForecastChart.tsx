@@ -28,6 +28,7 @@ interface ForecastChartProps {
   materialId: string;
 }
 
+// Type definitions for Recharts Tooltip to satisfy TypeScript
 type RechartsTooltipValue = number | string | Array<number | string>;
 type RechartsTooltip = TooltipProps<RechartsTooltipValue, string>;
 
@@ -65,6 +66,7 @@ const formatNumber = (v: number | string) => {
 };
 
 // Helper to merge two series into one data array keyed by date
+// This is required because Recharts expects a single array of objects
 function mergeSeries(
   historical: DataPoint[],
   forecast: ForecastPoint[]

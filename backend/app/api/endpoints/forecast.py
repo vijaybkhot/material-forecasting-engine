@@ -1,4 +1,5 @@
 import os
+import joblib
 import redis
 import json
 import traceback
@@ -7,6 +8,7 @@ from app.schemas.forecasting import ForecastResponse
 from app.services.forecasting import generate_forecast
 from app.database import get_available_materials
 from app.database.crud_forecast import get_historical_data
+from app.core.config import get_model_paths
 
 # --- Router and Redis Connection ---
 router = APIRouter()
@@ -51,23 +53,50 @@ def get_historical_data_endpoint(material_id: str):
 
 @router.get("/forecast", tags=["Forecasting"], response_model=ForecastResponse)
 def get_forecast_endpoint(material_id: str, horizon: int = 12):
-    if material_id != 'PPI_STEEL':
-        raise HTTPException(status_code=400, detail="Forecasting is currently only supported for 'PPI_STEEL'.")
+    
+    # 1. REMOVE the hardcoded check for PPI_STEEL
+    # (Delete the 'if material_id != ...' block)
 
-    # Caching Logic
+    # 2. Redis Caching (Keep existing logic)
     cache_key = f"forecast:{material_id}:{horizon}"
-    if redis_client:
-        cached_result = redis_client.get(cache_key)
-        if cached_result:
-            print(f"✔️ Serving forecast for '{material_id}' from cache.")
-            return ForecastResponse(material_id=material_id, forecast=json.loads(cached_result), source="cache")
+    # ... (Check redis code) ...
 
-    print(f"⚙️ Generating new forecast for '{material_id}' using the model.")
+    print(f"⚙️ Generating forecast for '{material_id}'...")
+    
     try:
-        forecast_data = generate_forecast(horizon=horizon)
+        # 3. Get Dynamic Paths
+        model_path, manifest_path = get_model_paths(material_id)
+        
+        # 4. Check if Model Exists
+        if not model_path.exists() or not manifest_path.exists():
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Model for {material_id} not found. Please contact admin to retrain models."
+            )
+
+        # 5. Load Model & Manifest
+        model = joblib.load(model_path)
+        
+        with open(manifest_path, 'r') as f:
+            manifest = json.load(f)
+            last_date = manifest.get("last_training_date")
+
+        # 6. Generate Forecast
+        # Pass the model AND the date to the service
+        forecast_data = generate_forecast(model, last_date, horizon)
+
+        # 7. Cache & Return
         if redis_client:
             redis_client.set(cache_key, json.dumps(forecast_data), ex=3600)
-        return ForecastResponse(material_id=material_id, forecast=forecast_data, source="model")
+
+        return ForecastResponse(
+            material_id=material_id,
+            forecast=forecast_data,
+            source="model"
+        )
+
+    except HTTPException as he:
+        raise he
     except Exception as e:
         print(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=f"Model prediction error: {e}")
+        raise HTTPException(status_code=500, detail=f"Model prediction error: {str(e)}")

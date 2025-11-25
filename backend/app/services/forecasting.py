@@ -1,37 +1,36 @@
-import joblib
-import json
 import pandas as pd
-from app.core.config import MODEL_PATH, MANIFEST_PATH
 
-# Load model and manifest once when the service starts
-try:
-    model = joblib.load(MODEL_PATH)
-    with open(MANIFEST_PATH, 'r') as f:
-        model_manifest = json.load(f)
-    last_training_date = pd.to_datetime(model_manifest.get("training_data_end_date"))
-    print("✅ Model and manifest loaded successfully in service.")
-except Exception as e:
-    print(f"❌ Failed to load model or manifest in service: {e}")
-    model = None
-    last_training_date = None
+def generate_forecast(model, last_training_date, horizon: int):
+    """
+    Generates forecast using a loaded model object passed from the API.
+    This function is stateless and works for any material model.
+    """
+    try:
+        # 1. Calculate future dates
+        # We use the last_training_date passed from the API (read from the specific material's manifest)
+        start_date = pd.to_datetime(last_training_date)
+        
+        # Generate the range starting from the month AFTER the last training data
+        future_dates = pd.date_range(
+            start=start_date + pd.DateOffset(months=1), 
+            periods=horizon, 
+            freq='MS'
+        )
 
-def generate_forecast(horizon: int):
-    """Generates a forecast using the loaded champion model."""
-    if model is None or last_training_date is None:
-        raise RuntimeError("Model or training date is not available.")
+        # 2. Generate Predictions
+        # The model object is already loaded by the API endpoint and passed here
+        forecast_values = model.forecast(steps=horizon)
 
-    # Generate future dates
-    future_dates = pd.date_range(
-        start=last_training_date + pd.offsets.MonthBegin(1),
-        periods=horizon,
-        freq='MS'
-    )
-    
-    # Get forecast values
-    forecast_values = model.forecast(steps=horizon)
+        # 3. Format Output
+        formatted_forecast = []
+        for date, value in zip(future_dates, forecast_values):
+            formatted_forecast.append({
+                "date": date.strftime("%Y-%m-%d"),
+                "forecast": round(value, 2)
+            })
+            
+        return formatted_forecast
 
-    # Format the data
-    return [
-        {"date": d.strftime("%Y-%m-%d"), "forecast": float(v)}
-        for d, v in zip(future_dates, forecast_values)
-    ]
+    except Exception as e:
+        print(f"Error in generate_forecast: {e}")
+        raise e

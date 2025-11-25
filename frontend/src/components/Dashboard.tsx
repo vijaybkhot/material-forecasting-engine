@@ -16,7 +16,7 @@ interface ForecastDataPoint {
 }
 
 // Get API URL from environment variables.
-// In production we *require* NEXT_PUBLIC_API_URL to be set so we never talk to localhost.
+// In production we *require* NEXT_PUBLIC_API_URL to be set.
 // In development we fall back to the local backend.
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
@@ -37,10 +37,20 @@ export default function Dashboard() {
   useEffect(() => {
     async function fetchMaterials() {
       try {
+        // Only fetch if API_URL is defined (prevents relative path errors in some setups)
+        if (!API_URL) {
+          console.warn("API_URL is not set. Requests may fail.");
+        }
+
         const response = await fetch(`${API_URL}/materials`);
         if (!response.ok) throw new Error("Failed to fetch materials");
         const data = await response.json();
         setMaterials(data);
+
+        // Optional: Select the first material by default
+        if (data.length > 0 && !selectedMaterial) {
+          setSelectedMaterial(data[0]);
+        }
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "An unknown error occurred"
@@ -56,7 +66,6 @@ export default function Dashboard() {
       // Clear data if no material is selected
       setHistoricalData([]);
       setForecastData([]);
-      setError(null);
       return;
     }
 
@@ -75,16 +84,16 @@ export default function Dashboard() {
           throw new Error(
             `Failed to fetch historical data for ${selectedMaterial}`
           );
+
+        const forecastPayload = await forecastRes.json();
         if (!forecastRes.ok) {
-          const errorData = await forecastRes.json();
           throw new Error(
-            errorData.detail ||
+            forecastPayload.detail ||
               `Failed to fetch forecast for ${selectedMaterial}`
           );
         }
 
         const histData = await histRes.json();
-        const forecastPayload = await forecastRes.json();
 
         setHistoricalData(histData);
         setForecastData(forecastPayload.forecast);
