@@ -2,6 +2,8 @@
 FROM node:18-alpine AS builder
 WORKDIR /app
 
+RUN rm -rf node_modules
+
 # Ensure deterministic installs (install devDependencies in builder stage)
 ENV NEXT_TELEMETRY_DISABLED=1
 

@@ -8,9 +8,6 @@
 #
 # 2. Run the script from your project root:
 #    ./setup.sh
-# This will set up the entire environment from scratch.
-# It stops old containers, removes volumes, builds fresh images,
-# starts the services, and seeds the database with initial data.
 
 set -e # Exit immediately if a command exits with a non-zero status.
 
@@ -35,8 +32,13 @@ until docker compose exec db pg_isready -U vijay -d constrisk -q; do
 done
 echo "✅ Database is ready to accept connections."
 
-# --- 4. Seed the Database ---
-echo "🌱 Running the Python ingestion script to create tables and load data..."
+# --- 3.5. Run Migrations (The Architect) ---
+echo "🏗️ Running database migrations to create tables..."
+docker compose exec api alembic upgrade head
+echo "✅ Tables created."
+
+# --- 4. Seed the Database (The Movers) ---
+echo "🌱 Running the Python ingestion script to load data..."
 python ml/scripts/ingest_data.py
 echo "✅ Database has been seeded."
 

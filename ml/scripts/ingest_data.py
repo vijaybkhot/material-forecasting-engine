@@ -7,11 +7,18 @@ from pathlib import Path
 
 # --- CONFIGURATION ---
 # project_root = Path(__file__).resolve().parents[2]
-PROJECT_ROOT = Path("/app")
+if Path("/app").exists():
+    PROJECT_ROOT = Path("/app") # Docker/Heroku
+else:
+    PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
 dotenv_path = PROJECT_ROOT / '.env'
 load_dotenv(dotenv_path=dotenv_path)
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = os.getenv("DATABASE_URL_ALEMBIC")
+if not DATABASE_URL:
+    DATABASE_URL = os.getenv("DATABASE_URL")
+
 FRED_API_KEY = os.getenv("FRED_API_KEY")
 
 SERIES_TO_FETCH = {
@@ -47,32 +54,25 @@ def fetch_series_data(series_id, api_key):
     return df
 
 def save_to_db(df, table_name, engine):
-    """Creates the table if needed and saves the DataFrame, all in one transaction."""
+    """Saves the DataFrame to the DB. Assumes table exists (managed by Alembic)."""
     with engine.connect() as connection:
-        # This 'begin()' block automatically handles the transaction.
         with connection.begin() as transaction:
-            # 1. Ensure the table exists (moved logic here)
-            print(f"Ensuring table '{table_name}' exists...")
-            connection.execute(text(f"""
-                CREATE TABLE IF NOT EXISTS {table_name} (
-                    date DATE NOT NULL,
-                    value DOUBLE PRECISION,
-                    series_id TEXT NOT NULL,
-                    source TEXT,
-                    PRIMARY KEY (series_id, date)
-                );
-            """))
+            try:
+                # 1. Delete old data for the series being ingested
+                # We trust that the table 'raw_series' already exists.
+                for series_id in df['series_id'].unique():
+                    print(f"Deleting old data for {series_id}...")
+                    connection.execute(text(f"DELETE FROM {table_name} WHERE series_id = :series_id"), {'series_id': series_id})
 
-            # 2. Delete old data for the series being ingested
-            for series_id in df['series_id'].unique():
-                print(f"Deleting old data for {series_id}...")
-                connection.execute(text(f"DELETE FROM {table_name} WHERE series_id = :series_id"), {'series_id': series_id})
-
-            # 3. Insert the new data
-            print("Inserting new data...")
-            df.to_sql(table_name, connection, if_exists='append', index=False)
+                # 2. Insert the new data
+                print("Inserting new data...")
+                df.to_sql(table_name, connection, if_exists='append', index=False)
+                
+                print("Data insertion complete.")
             
-    print("Data insertion complete and transaction committed.")
+            except Exception as e:
+                print(f"An error occurred, rolling back: {e}")
+                raise
 
 # --- MAIN EXECUTION ---
 if __name__ == "__main__":
