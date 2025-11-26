@@ -15,7 +15,7 @@ The **Material Forecasting Engine** is a full-stack machine learning application
 ## 🚀 Live Demo
 
 - **Dashboard:** [material-forecasting-engine.vercel.app](https://material-forecasting-engine.vercel.app/)
-- **Video Walkthrough:** [Watch the Demo](https://www.youtube.com/watch?v=dQw4w9WgXcQ) *(Link coming soon)*
+- **Video Walkthrough:** [Watch the Demo](https://www.youtube.com/watch?v=dQw4w9WgXcQ) _(Link coming soon)_
 
 ---
 
@@ -32,23 +32,27 @@ The **Material Forecasting Engine** is a full-stack machine learning application
 ## 🛠️ Tech Stack
 
 ### **Frontend**
+
 - **Framework:** Next.js (App Router)
 - **Language:** TypeScript
 - **Styling:** Tailwind CSS
 - **Visualization:** Recharts
 
 ### **Backend**
+
 - **Framework:** FastAPI
 - **Database:** PostgreSQL (SQLAlchemy + Alembic)
 - **Caching:** Redis
 - **Runtime:** Python 3.11
 
 ### **Machine Learning**
+
 - **Libraries:** Scikit-learn, Statsmodels, Pandas
 - **Data Source:** FRED API (Federal Reserve Economic Data)
 - **Models:** SARIMAX, Exponential Smoothing, Linear Regression
 
 ### **DevOps & Infrastructure**
+
 - **Containerization:** Docker & Docker Compose
 - **Orchestration:** Heroku (Backend) & Vercel (Frontend)
 - **CI/CD:** GitHub Actions (Code) + Heroku Container Registry (Artifacts)
@@ -62,11 +66,12 @@ One of the biggest challenges in deploying ML applications is handling large mod
 To solve this, I implemented a **Hybrid Deployment Strategy**:
 
 1.  **Code vs. Artifacts Separation:**
+
     - **GitHub** hosts the source code (lightweight, version controlled).
     - **Heroku Container Registry** hosts the compiled Docker image containing the heavy model artifacts.
 
 2.  **The Build Process:**
-    - We build the Docker image *locally*, where the large model files reside.
+    - We build the Docker image _locally_, where the large model files reside.
     - This image (Code + Dependencies + Models) is pushed directly to Heroku's registry, bypassing GitHub's limits entirely.
     - This ensures production always has the exact models validated in development.
 
@@ -74,8 +79,8 @@ To solve this, I implemented a **Hybrid Deployment Strategy**:
 graph LR
     A[Local Dev Environment] -->|Push Code| B[GitHub Repo]
     A -->|Build & Push Image| C[Heroku Container Registry]
-    B -->|Trigger Deploy| D[Vercel (Frontend)]
-    C -->|Release Container| E[Heroku (Backend API)]
+    B -->|Trigger Deploy| D[Vercel Frontend]
+    C -->|Release Container| E[Heroku Backend API]
     E <--> F[PostgreSQL DB]
     E <--> G[Redis Cache]
 ```
@@ -87,6 +92,7 @@ graph LR
 Follow these steps to run the entire stack on your machine.
 
 ### Prerequisites
+
 - Docker & Docker Compose
 - Python 3.11+
 - Node.js 18+
@@ -94,6 +100,7 @@ Follow these steps to run the entire stack on your machine.
 ### Installation
 
 1.  **Clone the repository**
+
     ```bash
     git clone https://github.com/vijaybkhot/material-forecasting-engine.git
     cd material-forecasting-engine
@@ -101,12 +108,14 @@ Follow these steps to run the entire stack on your machine.
 
 2.  **Run the Setup Script**
     This script sets up the environment variables and local directories.
+
     ```bash
     ./setup.sh
     ```
 
 3.  **Start the Application (Docker)**
     Spin up the Database, API, and Frontend services.
+
     ```bash
     docker-compose up --build
     ```
@@ -147,10 +156,13 @@ For detailed information on the forecasting methodology, data sources, and perfo
 ## 👤 Author
 
 **Vijay Khot**
+
 - **Role:** Full Stack Developer & ML Engineer
+- **Portfolio:** [vijaykhot.com](https://vijaykhot.com)
+- **Medium:** [@vijaysinh.khot](https://medium.com/@vijaysinh.khot)
 - **GitHub:** [vijaybkhot](https://github.com/vijaybkhot)
 - **LinkedIn:** [Vijay Khot](https://www.linkedin.com/in/vijaykhot)
 
 ---
 
-*Built with ❤️ using Python and TypeScript.*
+_Built with ❤️ using Python and TypeScript._
