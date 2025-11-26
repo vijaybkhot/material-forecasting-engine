@@ -184,6 +184,11 @@ export default function MaterialSelector({
             );
           })}
         </select>
+        {/* Helper text to explain the non-material options */}
+        <p className="mt-2 text-xs text-gray-500">
+          * Economic indicators like Interest Rates are included as they drive
+          material costs.
+        </p>
       </div>
     </div>
   );
