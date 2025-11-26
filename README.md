@@ -8,14 +8,27 @@
 
 > **AI-Powered Risk Analysis for the Construction Industry**
 
-The **Material Forecasting Engine** is a full-stack machine learning application designed to predict future prices of critical construction materials (Lumber, Steel, Concrete). By leveraging historical economic data from the Federal Reserve (FRED) and advanced time-series forecasting models, this tool helps project managers and estimators mitigate financial risk in long-term construction projects.
+The **Material Forecasting Engine** is a full-stack machine learning application designed to predict future prices of critical construction materials (Lumber, Steel, Concrete). **Construction material prices are volatile and can destroy project margins.** By leveraging historical economic data from the Federal Reserve (FRED) and advanced time-series forecasting models, this tool helps project managers and estimators mitigate financial risk in long-term construction projects.
 
 ---
 
 ## 🚀 Live Demo
 
-- **Dashboard:** [material-forecasting-engine.vercel.app](https://material-forecasting-engine.vercel.app/)
-- **Video Walkthrough:** [Watch the Demo](https://www.youtube.com/watch?v=dQw4w9WgXcQ) _(Link coming soon)_
+- **Frontend:** [material-forecasting-engine.vercel.app](https://material-forecasting-engine.vercel.app/)
+- **API Docs (Swagger):** [constrisk-api.herokuapp.com/docs](https://constrisk-api-96f05a1f5ba2.herokuapp.com/docs)
+- **Video Walkthrough:** [Watch the Demo](https://www.youtube.com/watch?v=dQw4w9WgXcQ) *(Link coming soon)*
+
+---
+
+## 🔌 API Reference
+
+The backend is a RESTful API built with **FastAPI**. You can interact with it directly:
+
+| Method | Endpoint | Description | Try it |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/health` | Health check for the API service. | [Link](https://constrisk-api-96f05a1f5ba2.herokuapp.com/health) |
+| `GET` | `/materials` | List all available materials. | [Link](https://constrisk-api-96f05a1f5ba2.herokuapp.com/materials) |
+| `GET` | `/forecast` | Generate a 12-month forecast (e.g., Steel). | [Link](https://constrisk-api-96f05a1f5ba2.herokuapp.com/forecast?material_id=PPI_STEEL&horizon=12) |
 
 ---
 
@@ -106,18 +119,17 @@ Follow these steps to run the entire stack on your machine.
     cd material-forecasting-engine
     ```
 
-2.  **Run the Setup Script**
-    This script sets up the environment variables and local directories.
-
+2.  **Configure Environment**
+    Create a `.env` file from the example template.
     ```bash
-    ./setup.sh
+    cp .env.example .env
+    # (Optional) Open .env and add your FRED_API_KEY
     ```
 
-3.  **Start the Application (Docker)**
-    Spin up the Database, API, and Frontend services.
-
+3.  **Run the Setup Script**
+    This single command builds containers, runs migrations, and seeds the database.
     ```bash
-    docker-compose up --build
+    ./setup.sh
     ```
 
 4.  **Access the App**
