@@ -16,7 +16,7 @@ The **Material Forecasting Engine** is a full-stack machine learning application
 
 - **Frontend:** [material-forecasting-engine.vercel.app](https://material-forecasting-engine.vercel.app/)
 - **API Docs (Swagger):** [constrisk-api.herokuapp.com/docs](https://constrisk-api-96f05a1f5ba2.herokuapp.com/docs)
-- **Video Walkthrough:** [Watch the Demo](https://www.youtube.com/watch?v=dQw4w9WgXcQ) *(Link coming soon)*
+- **Video Walkthrough:** [Watch the Demo](https://www.youtube.com/watch?v=dQw4w9WgXcQ) _(Link coming soon)_
 
 ---
 
@@ -24,11 +24,11 @@ The **Material Forecasting Engine** is a full-stack machine learning application
 
 The backend is a RESTful API built with **FastAPI**. You can interact with it directly:
 
-| Method | Endpoint | Description | Try it |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/health` | Health check for the API service. | [Link](https://constrisk-api-96f05a1f5ba2.herokuapp.com/health) |
-| `GET` | `/materials` | List all available materials. | [Link](https://constrisk-api-96f05a1f5ba2.herokuapp.com/materials) |
-| `GET` | `/forecast` | Generate a 12-month forecast (e.g., Steel). | [Link](https://constrisk-api-96f05a1f5ba2.herokuapp.com/forecast?material_id=PPI_STEEL&horizon=12) |
+| Method | Endpoint     | Description                                 | Try it                                                                                             |
+| :----- | :----------- | :------------------------------------------ | :------------------------------------------------------------------------------------------------- |
+| `GET`  | `/health`    | Health check for the API service.           | [Link](https://constrisk-api-96f05a1f5ba2.herokuapp.com/health)                                    |
+| `GET`  | `/materials` | List all available materials.               | [Link](https://constrisk-api-96f05a1f5ba2.herokuapp.com/materials)                                 |
+| `GET`  | `/forecast`  | Generate a 12-month forecast (e.g., Steel). | [Link](https://constrisk-api-96f05a1f5ba2.herokuapp.com/forecast?material_id=PPI_STEEL&horizon=12) |
 
 ---
 
@@ -121,6 +121,7 @@ Follow these steps to run the entire stack on your machine.
 
 2.  **Configure Environment**
     Create a `.env` file from the example template.
+
     ```bash
     cp .env.example .env
     # (Optional) Open .env and add your FRED_API_KEY
@@ -128,6 +129,7 @@ Follow these steps to run the entire stack on your machine.
 
 3.  **Run the Setup Script**
     This single command builds containers, runs migrations, and seeds the database.
+
     ```bash
     ./setup.sh
     ```
@@ -170,10 +172,21 @@ For detailed information on the forecasting methodology, data sources, and perfo
 **Vijay Khot**
 
 - **Role:** Full Stack Developer & ML Engineer
-- **Portfolio:** [vijaykhot.com](https://vijaykhot.com)
-- **Medium:** [@vijaysinh.khot](https://medium.com/@vijaysinh.khot)
-- **GitHub:** [vijaybkhot](https://github.com/vijaybkhot)
-- **LinkedIn:** [Vijay Khot](https://www.linkedin.com/in/vijaykhot)
+
+<p align="left">
+<a href="https://vijaykhot.com" target="_blank">
+  <img src="https://img.shields.io/badge/Portfolio-vijaykhot.com-blue?style=for-the-badge&logo=google-chrome" alt="Portfolio">
+</a>
+<a href="https://medium.com/@vijaysinh.khot" target="_blank">
+  <img src="https://img.shields.io/badge/Medium-@vijaysinh.khot-black?style=for-the-badge&logo=medium" alt="Medium">
+</a>
+<a href="https://github.com/vijaybkhot" target="_blank">
+  <img src="https://img.shields.io/badge/GitHub-vijaybkhot-181717?style=for-the-badge&logo=github" alt="GitHub">
+</a>
+<a href="https://www.linkedin.com/in/vijay-khot/" target="_blank">
+  <img src="https://img.shields.io/badge/LinkedIn-Vijay%20Khot-0077B5?style=for-the-badge&logo=linkedin" alt="LinkedIn">
+</a>
+</p>
 
 ---
 
