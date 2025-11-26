@@ -1,2 +1,156 @@
-# material-forecasting-engine
-A full-stack application to forecast construction material prices using ML and time-series analysis.
+# 🏗️ Material Forecasting Engine
+
+[![Live Demo](https://img.shields.io/badge/demo-online-green.svg)](https://material-forecasting-engine.vercel.app/)
+[![Python](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.109-009688.svg)](https://fastapi.tiangolo.com/)
+[![Next.js](https://img.shields.io/badge/Next.js-14-black)](https://nextjs.org/)
+[![Docker](https://img.shields.io/badge/Docker-24.0-2496ED.svg)](https://www.docker.com/)
+
+> **AI-Powered Risk Analysis for the Construction Industry**
+
+The **Material Forecasting Engine** is a full-stack machine learning application designed to predict future prices of critical construction materials (Lumber, Steel, Concrete). By leveraging historical economic data from the Federal Reserve (FRED) and advanced time-series forecasting models, this tool helps project managers and estimators mitigate financial risk in long-term construction projects.
+
+---
+
+## 🚀 Live Demo
+
+- **Dashboard:** [material-forecasting-engine.vercel.app](https://material-forecasting-engine.vercel.app/)
+- **Video Walkthrough:** [Watch the Demo](https://www.youtube.com/watch?v=dQw4w9WgXcQ) *(Link coming soon)*
+
+---
+
+## 💡 Key Features
+
+- **📈 Multi-Model Forecasting:** Automatically trains and selects the best model (SARIMAX, Prophet, Exponential Smoothing) for each material.
+- **🔄 Automated Data Pipeline:** Ingests fresh data from FRED API, retrains models, and updates forecasts automatically.
+- **📊 Interactive Dashboard:** React-based frontend with dynamic charts to visualize historical trends and future predictions.
+- **🐳 MLOps Optimized:** Solves the "Large Artifact" problem using containerized deployments (more on this below).
+- **🛡️ Robust Backend:** FastAPI service with PostgreSQL storage and Redis caching for high performance.
+
+---
+
+## 🛠️ Tech Stack
+
+### **Frontend**
+- **Framework:** Next.js (App Router)
+- **Language:** TypeScript
+- **Styling:** Tailwind CSS
+- **Visualization:** Recharts
+
+### **Backend**
+- **Framework:** FastAPI
+- **Database:** PostgreSQL (SQLAlchemy + Alembic)
+- **Caching:** Redis
+- **Runtime:** Python 3.11
+
+### **Machine Learning**
+- **Libraries:** Scikit-learn, Statsmodels, Pandas
+- **Data Source:** FRED API (Federal Reserve Economic Data)
+- **Models:** SARIMAX, Exponential Smoothing, Linear Regression
+
+### **DevOps & Infrastructure**
+- **Containerization:** Docker & Docker Compose
+- **Orchestration:** Heroku (Backend) & Vercel (Frontend)
+- **CI/CD:** GitHub Actions (Code) + Heroku Container Registry (Artifacts)
+
+---
+
+## 🏗️ Architecture & Deployment Strategy
+
+One of the biggest challenges in deploying ML applications is handling large model artifacts. Trained models (like our `.pkl` files) often exceed GitHub's **100MB file size limit**.
+
+To solve this, I implemented a **Hybrid Deployment Strategy**:
+
+1.  **Code vs. Artifacts Separation:**
+    - **GitHub** hosts the source code (lightweight, version controlled).
+    - **Heroku Container Registry** hosts the compiled Docker image containing the heavy model artifacts.
+
+2.  **The Build Process:**
+    - We build the Docker image *locally*, where the large model files reside.
+    - This image (Code + Dependencies + Models) is pushed directly to Heroku's registry, bypassing GitHub's limits entirely.
+    - This ensures production always has the exact models validated in development.
+
+```mermaid
+graph LR
+    A[Local Dev Environment] -->|Push Code| B[GitHub Repo]
+    A -->|Build & Push Image| C[Heroku Container Registry]
+    B -->|Trigger Deploy| D[Vercel (Frontend)]
+    C -->|Release Container| E[Heroku (Backend API)]
+    E <--> F[PostgreSQL DB]
+    E <--> G[Redis Cache]
+```
+
+---
+
+## ⚡ Getting Started Locally
+
+Follow these steps to run the entire stack on your machine.
+
+### Prerequisites
+- Docker & Docker Compose
+- Python 3.11+
+- Node.js 18+
+
+### Installation
+
+1.  **Clone the repository**
+    ```bash
+    git clone https://github.com/vijaybkhot/material-forecasting-engine.git
+    cd material-forecasting-engine
+    ```
+
+2.  **Run the Setup Script**
+    This script sets up the environment variables and local directories.
+    ```bash
+    ./setup.sh
+    ```
+
+3.  **Start the Application (Docker)**
+    Spin up the Database, API, and Frontend services.
+    ```bash
+    docker-compose up --build
+    ```
+
+4.  **Access the App**
+    - Frontend: `http://localhost:3000`
+    - Backend API Docs: `http://localhost:8000/docs`
+
+---
+
+## 📂 Project Structure
+
+```
+├── backend/            # FastAPI application
+│   ├── app/            # API endpoints, CRUD, schemas
+│   ├── alembic/        # Database migrations
+│   └── models.py       # SQLAlchemy database models
+├── frontend/           # Next.js application
+│   ├── src/app/        # App Router pages
+│   └── src/components/ # React components (Charts, Dashboard)
+├── ml/                 # Machine Learning pipeline
+│   ├── data/           # Raw and processed data
+│   ├── models/         # Trained model artifacts (.pkl)
+│   ├── notebooks/      # Jupyter notebooks for experimentation
+│   └── scripts/        # Training and ingestion scripts
+├── docs/               # Documentation
+└── docker-compose.yml  # Local orchestration
+```
+
+---
+
+## 📄 Model Information
+
+For detailed information on the forecasting methodology, data sources, and performance metrics, please see the [Model Card](docs/MODEL_CARD.md).
+
+---
+
+## 👤 Author
+
+**Vijay Khot**
+- **Role:** Full Stack Developer & ML Engineer
+- **GitHub:** [vijaybkhot](https://github.com/vijaybkhot)
+- **LinkedIn:** [Vijay Khot](https://www.linkedin.com/in/vijaykhot)
+
+---
+
+*Built with ❤️ using Python and TypeScript.*
