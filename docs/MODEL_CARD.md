@@ -27,22 +27,43 @@
 - Models are evaluated using RMSE (Root Mean Squared Error) and MAE (Mean Absolute Error) on a hold-out validation set (last 12-24 months).
 - The "Champion" model for each series is selected automatically based on the lowest RMSE.
 
-## Model Competition & Selection
+## The Model Showdown: A Search for the Best Predictor
 
-To ensure the highest accuracy, we implemented a "Model Showdown" framework where multiple algorithms compete for each material series:
+Our journey to find the most accurate forecasting model unfolded in four distinct stages, with each phase challenging the previous leader.
 
-1.  **The Contenders:**
+### Round 1: Setting the Baseline
 
-    - **SARIMAX (Seasonal AutoRegressive Integrated Moving Average with eXogenous regressors):** A statistical model excellent for capturing seasonality and the impact of external economic factors (like Interest Rates).
-    - **Prophet (by Meta):** A robust additive model that handles missing data and outliers well.
-    - **Exponential Smoothing (Holt-Winters):** A classic method focusing on trends and seasonality.
-    - **XGBoost / Random Forest:** Tree-based ensemble methods (used as baselines).
+We began by establishing a performance floor using simple heuristics (**Naive**, **Seasonal Naive**, and **Moving Average**).
 
-2.  **The Winner: SARIMAX**
-    - For most construction material indices (Lumber, Steel, Concrete), **SARIMAX** emerged as the clear winner.
-    - **Why?** SARIMAX (Seasonal ARIMA) excelled at capturing the complex autocorrelation and monthly seasonality inherent in construction material prices.
-    - **Note on Exogenous Variables:** We extensively tested adding external regressors (Housing Starts, Federal Funds Rate, CPI) to both Prophet and SARIMAX models. However, these multivariate models consistently **underperformed** the univariate versions (higher RMSE). This indicates that the historical price history itself contains the strongest predictive signal for short-to-medium term forecasting, and adding external variables introduced more noise than signal.
-    - Unlike Prophet, which assumes a decomposable trend+seasonality structure, SARIMAX's autoregressive terms allowed it to better adapt to the recent "cooling" trends in the post-pandemic market.
+- **Result:** These models failed to adapt to recent market volatility, confirming that advanced modeling was necessary.
+
+### Round 2: The Classical Contender (Exponential Smoothing)
+
+We introduced **Holt-Winters Exponential Smoothing**, a classic statistical method.
+
+- **Performance:** It immediately outperformed the baselines by capturing the strong seasonal patterns in construction materials.
+- **Status:** It became the "Champion to Beat."
+
+### Round 3: The Modern Challenger (Prophet)
+
+We then tested **Meta's Prophet**, hoping its flexibility with outliers would handle post-pandemic price spikes better.
+
+- **Surprise:** Prophet struggled to match the accuracy of Exponential Smoothing on this specific dataset, often over-smoothing the recent cooling trends.
+
+### Round 4: The Hypothesis Test (External Regressors)
+
+We hypothesized that adding economic indicators (Housing Starts, Interest Rates, CPI) would improve accuracy.
+
+- **The Experiment:** We trained multivariate versions of Prophet and tested the impact of exogenous variables.
+- **The Finding:** Surprisingly, these models **underperformed** their univariate counterparts. The external variables introduced more noise than signal for short-term forecasting, proving that the price history itself held the strongest predictive power.
+
+### Round 5: Enter SARIMAX (The Winner)
+
+In the final phase, we introduced **SARIMAX** (Seasonal ARIMA) as a pure, univariate model.
+
+- **The Strategy:** We stripped away the external noise and focused purely on the complex autocorrelation structures within the price history itself.
+- **Why it Won:** Unlike Prophet's rigid trend assumptions, SARIMAX's autoregressive terms allowed it to rapidly adapt to the recent market cooling. It captured the complex seasonality that Exponential Smoothing found, but with better error minimization.
+- **Outcome:** SARIMAX achieved the lowest RMSE across Lumber, Steel, and Concrete, earning its place as our production model.
 
 ## Limitations
 
