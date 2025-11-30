@@ -20,6 +20,60 @@ The **Material Forecasting Engine** is a full-stack machine learning application
 
 ---
 
+## 🧠 System Architecture & Data Flow
+
+The system implements a complete **ETL (Extract, Transform, Load) and Inference pipeline**. It decouples the heavy ML operations from the user-facing application.
+
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#ffaa00', 'edgeLabelBackground':'#ffffff', 'tertiaryColor': '#f4f4f4'}}}%%
+graph LR
+    subgraph "External World"
+        FRED[("🏦 Federal Reserve API<br/>(Raw Economic Data)")]
+    end
+
+    subgraph "Data Ingestion Pipeline (ETL)"
+        IngestScript["⚙️ Python Ingest Script<br/>(pandas/requests)"]
+        Validation{"Data Validation"}
+    end
+
+    subgraph "Storage Layer"
+        Postgres[("🐘 PostgreSQL<br/>(Historical Data<br/>& Training Set)")]
+    end
+
+    subgraph "ML Inference Engine"
+        API["⚡ FastAPI Backend"]
+        Model["🧠 SARIMAX Model<br/>(Pickle Artifact)"]
+        Cache[("🔴 Redis Cache<br/>(Inference Results)")]
+    end
+
+    subgraph "Presentation"
+        Frontend["⚛️ Next.js Dashboard"]
+    end
+
+    %% Data Flow
+    FRED --> |"1. Fetch Monthly Data"| IngestScript
+    IngestScript --> |"2. Transform & Clean"| Validation
+    Validation --> |"3. Upsert Rows"| Postgres
+
+    %% Inference Flow
+    Frontend --> |"4. Request Forecast"| API
+    API <--> |"5. Check Cache"| Cache
+    API --> |"6. Load Model"| Model
+    Model --> |"7. Generate Predictions"| API
+    API --> |"8. Return JSON"| Frontend
+
+    %% Styling
+    classDef storage fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
+    classDef process fill:#fff3e0,stroke:#ff6f00,stroke-width:2px;
+    classDef external fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px;
+
+    class FRED,Postgres,Cache storage;
+    class IngestScript,API,Model,Frontend process;
+    class Validation external;
+```
+
+---
+
 ## 🔌 API Reference
 
 The backend is a RESTful API built with **FastAPI**. You can interact with it directly:
@@ -72,11 +126,9 @@ The backend is a RESTful API built with **FastAPI**. You can interact with it di
 
 ---
 
-## 🏗️ Architecture & Deployment Strategy
+## 🏗️ Deployment Strategy (DevOps)
 
-One of the biggest challenges in deploying ML applications is handling large model artifacts. Trained models (like our `.pkl` files) often exceed GitHub's **100MB file size limit**.
-
-To solve this, I implemented a **Hybrid Deployment Strategy**:
+To handle the large model artifacts (which exceed GitHub's 100MB limit), I implemented a **Hybrid Deployment Strategy**:
 
 1.  **Code vs. Artifacts Separation:**
 
@@ -84,9 +136,8 @@ To solve this, I implemented a **Hybrid Deployment Strategy**:
     - **Heroku Container Registry** hosts the compiled Docker image containing the heavy model artifacts.
 
 2.  **The Build Process:**
-    - We build the Docker image _locally_, where the large model files reside.
-    - This image (Code + Dependencies + Models) is pushed directly to Heroku's registry, bypassing GitHub's limits entirely.
-    - This ensures production always has the exact models validated in development.
+    - We build the Docker image _locally_ to bake in the models.
+    - This ensures production has the exact artifacts validated in development.
 
 ```mermaid
 graph LR

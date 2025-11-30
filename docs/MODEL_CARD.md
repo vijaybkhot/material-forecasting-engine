@@ -63,11 +63,11 @@ In the final phase, we introduced **SARIMAX** as a pure, univariate model.
 
 Models were validated using **Rolling-Origin Cross-Validation** (5 splits) to ensure robustness against different economic regimes.
 
-| Material | Mean sMAPE | Verdict |
-| :--- | :--- | :--- |
-| **Steel** | ~9.08% | Highly Accurate |
-| **Concrete** | ~3.50% | Excellent Stability |
-| **Lumber** | ~12.4% | Volatile (Due to high market elasticity) |
+| Material     | Mean sMAPE | Verdict                                  |
+| :----------- | :--------- | :--------------------------------------- |
+| **Steel**    | ~9.08%     | Highly Accurate                          |
+| **Concrete** | ~3.50%     | Excellent Stability                      |
+| **Lumber**   | ~12.4%     | Volatile (Due to high market elasticity) |
 
 ## Limitations
 
