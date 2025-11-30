@@ -24,27 +24,45 @@ The **Material Forecasting Engine** is a full-stack machine learning application
 
 The system implements a complete **ETL (Extract, Transform, Load) and Inference pipeline**. It decouples the heavy ML operations from the user-facing application.
 
-### 📥 Data Ingestion Pipeline (Offline/Batch)
-
 ```mermaid
 graph TD
-    FRED[("🏦 FRED API")] -->|1. Fetch Data| Ingest["⚙️ Ingest Script"]
-    Ingest -->|2. Validate| Valid{"Validation"}
-    Valid -->|3. Store| DB[("🐘 PostgreSQL")]
-    DB -.->|Training Data| Model["🧠 SARIMAX Model"]
-```
+    %% Theme & Colors
+    %%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#ffaa00', 'edgeLabelBackground':'#ffffff', 'tertiaryColor': '#f4f4f4'}}}%%
+    classDef client fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#4a148c;
+    classDef app fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:#0d47a1;
+    classDef infra fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#bf360c;
+    classDef data fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#1b5e20;
+    classDef external fill:#f5f5f5,stroke:#616161,stroke-width:2px,stroke-dasharray: 5 5,color:#212121;
 
-### ⚡ Inference Pipeline (Real-Time)
+    %% --- LEFT TRACK: DATA PIPELINE ---
+    subgraph Offline ["🛠️ Offline Data Pipeline"]
+        direction TB
+        FRED[("🏦 FRED API")]:::external
+        Ingest["⚙️ ETL Script"]:::app
+        DB[("🐘 PostgreSQL")]:::data
 
-```mermaid
-graph TD
-    User["👤 User"] -->|4. Request| Frontend["⚛️ Next.js"]
-    Frontend -->|5. API Call| API["⚡ FastAPI"]
-    API <-->|6. Check| Cache[("🔴 Redis")]
-    API -->|7. Load| Model["🧠 SARIMAX"]
-    Model -->|8. Predict| API
-    API -->|9. Response| Frontend
-    Frontend -->|10. Display| User
+        FRED -->|"1. Fetch Raw Data"| Ingest
+        Ingest -->|"2. Clean & Upsert"| DB
+    end
+
+    %% --- RIGHT TRACK: USER FLOW ---
+    subgraph Online ["⚡ Real-Time Inference"]
+        direction TB
+        Client["⚛️ Next.js"]:::client
+        API["⚡ FastAPI"]:::app
+        Cache[("🔴 Redis")]:::infra
+        Model["🧠 SARIMAX"]:::app
+
+        Client -->|"4. Request"| API
+        API <-->|"5. Cache Hit/Miss"| Cache
+        API -->|"6. Predict"| Model
+    end
+
+    %% --- THE BRIDGE ---
+    DB -.->|"3. Training Data"| Model
+
+    %% Formatting to force parallel layout
+    linkStyle default stroke:#333,stroke-width:2px;
 ```
 
 ---
