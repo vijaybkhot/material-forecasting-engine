@@ -28,22 +28,22 @@ The system implements a complete **ETL (Extract, Transform, Load) and Inference 
 %%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#ffaa00', 'edgeLabelBackground':'#ffffff', 'tertiaryColor': '#f4f4f4'}}}%%
 graph LR
     subgraph "External World"
-        FRED[("🏦 Federal Reserve API<br/>(Raw Economic Data)")]
+        FRED[("🏦 Federal Reserve API\n(Raw Economic Data)")]
     end
 
     subgraph "Data Ingestion Pipeline (ETL)"
-        IngestScript["⚙️ Python Ingest Script<br/>(pandas/requests)"]
+        IngestScript["⚙️ Python Ingest Script\n(pandas/requests)"]
         Validation{"Data Validation"}
     end
 
     subgraph "Storage Layer"
-        Postgres[("🐘 PostgreSQL<br/>(Historical Data<br/>& Training Set)")]
+        Postgres[("🐘 PostgreSQL\n(Historical Data\n& Training Set)")]
     end
 
     subgraph "ML Inference Engine"
         API["⚡ FastAPI Backend"]
-        Model["🧠 SARIMAX Model<br/>(Pickle Artifact)"]
-        Cache[("🔴 Redis Cache<br/>(Inference Results)")]
+        Model["🧠 SARIMAX Model\n(Pickle Artifact)"]
+        Cache[("🔴 Redis Cache\n(Inference Results)")]
     end
 
     subgraph "Presentation"
@@ -54,6 +54,9 @@ graph LR
     FRED --> |"1. Fetch Monthly Data"| IngestScript
     IngestScript --> |"2. Transform & Clean"| Validation
     Validation --> |"3. Upsert Rows"| Postgres
+
+    %% Training/Context Flow (The "Senior" Touch)
+    Postgres -.-> |"Training Data"| Model
 
     %% Inference Flow
     Frontend --> |"4. Request Forecast"| API
