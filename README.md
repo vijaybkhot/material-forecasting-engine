@@ -24,55 +24,27 @@ The **Material Forecasting Engine** is a full-stack machine learning application
 
 The system implements a complete **ETL (Extract, Transform, Load) and Inference pipeline**. It decouples the heavy ML operations from the user-facing application.
 
+### 📥 Data Ingestion Pipeline (Offline/Batch)
+
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#ffaa00', 'edgeLabelBackground':'#ffffff', 'tertiaryColor': '#f4f4f4'}}}%%
-graph LR
-    subgraph "External World"
-        FRED[("🏦 Federal Reserve API\n(Raw Economic Data)")]
-    end
+graph TD
+    FRED[("🏦 FRED API")] -->|1. Fetch Data| Ingest["⚙️ Ingest Script"]
+    Ingest -->|2. Validate| Valid{"Validation"}
+    Valid -->|3. Store| DB[("🐘 PostgreSQL")]
+    DB -.->|Training Data| Model["🧠 SARIMAX Model"]
+```
 
-    subgraph "Data Ingestion Pipeline (ETL)"
-        IngestScript["⚙️ Python Ingest Script\n(pandas/requests)"]
-        Validation{"Data Validation"}
-    end
+### ⚡ Inference Pipeline (Real-Time)
 
-    subgraph "Storage Layer"
-        Postgres[("🐘 PostgreSQL\n(Historical Data\n& Training Set)")]
-    end
-
-    subgraph "ML Inference Engine"
-        API["⚡ FastAPI Backend"]
-        Model["🧠 SARIMAX Model\n(Pickle Artifact)"]
-        Cache[("🔴 Redis Cache\n(Inference Results)")]
-    end
-
-    subgraph "Presentation"
-        Frontend["⚛️ Next.js Dashboard"]
-    end
-
-    %% Data Flow
-    FRED --> |"1. Fetch Monthly Data"| IngestScript
-    IngestScript --> |"2. Transform & Clean"| Validation
-    Validation --> |"3. Upsert Rows"| Postgres
-
-    %% Training/Context Flow (The "Senior" Touch)
-    Postgres -.-> |"Training Data"| Model
-
-    %% Inference Flow
-    Frontend --> |"4. Request Forecast"| API
-    API <--> |"5. Check Cache"| Cache
-    API --> |"6. Load Model"| Model
-    Model --> |"7. Generate Predictions"| API
-    API --> |"8. Return JSON"| Frontend
-
-    %% Styling
-    classDef storage fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
-    classDef process fill:#fff3e0,stroke:#ff6f00,stroke-width:2px;
-    classDef external fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px;
-
-    class FRED,Postgres,Cache storage;
-    class IngestScript,API,Model,Frontend process;
-    class Validation external;
+```mermaid
+graph TD
+    User["👤 User"] -->|4. Request| Frontend["⚛️ Next.js"]
+    Frontend -->|5. API Call| API["⚡ FastAPI"]
+    API <-->|6. Check| Cache[("🔴 Redis")]
+    API -->|7. Load| Model["🧠 SARIMAX"]
+    Model -->|8. Predict| API
+    API -->|9. Response| Frontend
+    Frontend -->|10. Display| User
 ```
 
 ---
