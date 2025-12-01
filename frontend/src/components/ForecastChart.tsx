@@ -143,10 +143,13 @@ export default function ForecastChart({
             <CartesianGrid stroke="#4b5563" />
             <XAxis
               dataKey="date"
-              tick={{ fill: "#d1d5db" }}
+              tick={{ fill: "#d1d5db", fontSize: 12 }}
               tickFormatter={formatMonthYearShort}
               interval={interval}
               minTickGap={20}
+              angle={-45}
+              textAnchor="end"
+              height={60}
             />
             <YAxis tick={{ fill: "#d1d5db" }} />
             <Tooltip
