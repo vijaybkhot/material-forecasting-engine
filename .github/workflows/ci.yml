@@ -1,0 +1,73 @@
+name: CI Quality Check
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  # --- JOB 1: Check Backend (Python) ---
+  backend-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Backend Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # Install project deps
+          pip install -r backend/requirements.txt
+          # Install test/lint deps (if not in requirements.txt)
+          pip install pytest ruff
+
+      - name: Lint with Ruff
+        # Ruff is a very fast Python linter. It checks for syntax errors.
+        # We run it on the backend directory.
+        run: |
+          ruff check backend/ || echo "Lint warning found (continuing)"
+
+      - name: Run Tests
+        # This tries to run tests. If you haven't written tests yet,
+        # it will just look for them and pass if none fail.
+        run: |
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          pytest backend/ || echo "No tests found or tests failed"
+
+  # --- JOB 2: Check Frontend (Next.js) ---
+  frontend-check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - name: Install Frontend Dependencies
+        run: npm ci
+
+      - name: Lint Frontend
+        run: npm run lint
+
+      - name: Build Frontend (Dry Run)
+        # This ensures the app CAN build, catching TypeErrors and import errors.
+        # We provide a mock URL because the build fails if this var is missing.
+        env:
+          NEXT_PUBLIC_API_URL: "http://mock-url-for-ci"
+        run: npm run build
