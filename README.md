@@ -1,5 +1,6 @@
 # 🏗️ Material Forecasting Engine
 
+[![CI Quality Check](https://github.com/vijaybkhot/material-forecasting-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/vijaybkhot/material-forecasting-engine/actions/workflows/ci.yml)
 [![Live Demo](https://img.shields.io/badge/demo-online-green.svg)](https://material-forecasting-engine.vercel.app/)
 [![Python](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.109-009688.svg)](https://fastapi.tiangolo.com/)
