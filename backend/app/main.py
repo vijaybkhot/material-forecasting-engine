@@ -6,23 +6,18 @@ from fastapi.middleware.cors import CORSMiddleware
 app = FastAPI(title="Contech Forecasting API", version="1.0")
 
 # --- CORS (Cross-Origin Resource Sharing) Configuration ---
-# Define the list of origins that are allowed to make requests to this API.
-# In development, this is your frontend's address.
 origins = [
     "http://localhost:3000",
-    "https://material-forecasting-engine-6nnw-r0kv1czme-vijay-khots-projects.vercel.app",
-    "https://material-forecasting-engine-6nnw.vercel.app/",
-    "https://material-forecasting-engine-6nnw-git-main-vijay-khots-projects.vercel.app/",
-    "https://material-forecasting-engine.vercel.app",
-    "https://material-forecasting-engine-git-main-vijay-khots-projects.vercel.app/",
-    "https://material-forecasting-engine-lokr7phjb-vijay-khots-projects.vercel.app/",
     "https://forecasting.vijaykhot.com"
 ]
+
+origin_regex = r"https://material-forecasting-engine.*\.vercel\.app"
 
 # Add the CORSMiddleware to the application
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,  # Allow origins listed above
+    allow_origin_regex=origin_regex, # Allow origins matching the regex
     allow_credentials=True, # Allow cookies to be included in requests
     allow_methods=["*"],    # Allow all methods (GET, POST, etc.)
     allow_headers=["*"],    # Allow all headers
