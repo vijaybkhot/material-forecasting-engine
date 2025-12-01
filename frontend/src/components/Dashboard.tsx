@@ -58,7 +58,7 @@ export default function Dashboard() {
       }
     }
     fetchMaterials();
-  }, []); // Empty dependency array means this runs once on mount
+  }, [selectedMaterial]); // Runs when selectedMaterial changes (but only sets default when empty)
 
   // Effect to fetch forecast and historical data when a material is selected
   useEffect(() => {
