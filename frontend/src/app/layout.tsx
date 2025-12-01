@@ -5,9 +5,9 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Contech Forecasting",
+  title: "Material Forecasting Engine | AI-Powered Price Prediction",
   description:
-    "Dashboard for visualizing construction material price forecasts.",
+    "Mitigate construction financial risk with 12-month machine learning forecasts for Steel, Lumber, and Concrete prices.",
 };
 
 export default function RootLayout({
