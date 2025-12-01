@@ -1,5 +1,4 @@
 # heroku.yml
-# 2. BUILD PHASE:
 setup:
   addons:
     - plan: heroku-postgresql
@@ -7,17 +6,12 @@ setup:
 
 build:
   docker:
-    # We now point to the single Dockerfile at the project root
     web: Dockerfile
 
-# 3. RELEASE PHASE: (This is for database migrations)
 release:
-  # The 'alembic.ini' file is now at the root of the
-  # container's /app directory, so we can run this directly.
   command:
     - sh -c "export PYTHONPATH=/app && alembic upgrade head && python ml/scripts/ingest_data.py"
   image: web
 
-# 4. RUN PHASE: (This is how your app starts)
 run:
   web: uvicorn app.main:app --host 0.0.0.0 --port $PORT

@@ -15,7 +15,8 @@ origins = [
     "https://material-forecasting-engine-6nnw-git-main-vijay-khots-projects.vercel.app/",
     "https://material-forecasting-engine.vercel.app",
     "https://material-forecasting-engine-git-main-vijay-khots-projects.vercel.app/",
-    "https://material-forecasting-engine-lokr7phjb-vijay-khots-projects.vercel.app/"
+    "https://material-forecasting-engine-lokr7phjb-vijay-khots-projects.vercel.app/",
+    "https://forecasting.vijaykhot.com"
 ]
 
 # Add the CORSMiddleware to the application
