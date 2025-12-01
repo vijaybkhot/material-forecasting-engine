@@ -14,7 +14,7 @@ The **Material Forecasting Engine** is a full-stack machine learning application
 
 ## 🚀 Live Demo
 
-- **Frontend:** [material-forecasting-engine.vercel.app](https://material-forecasting-engine.vercel.app/)
+- **Frontend:** [forecasting.vijaykhot.com/](https://forecasting.vijaykhot.com/)
 - **API Docs (Swagger):** [constrisk-api.herokuapp.com/docs](https://constrisk-api-96f05a1f5ba2.herokuapp.com/docs)
 - **Video Walkthrough:** [![Watch the Demo](https://img.youtube.com/vi/NEc9YYhIxww/0.jpg)](https://www.youtube.com/watch?v=NEc9YYhIxww)
 
