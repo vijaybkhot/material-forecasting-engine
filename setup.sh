@@ -39,7 +39,7 @@ echo "✅ Tables created."
 
 # --- 4. Seed the Database (The Movers) ---
 echo "🌱 Running the Python ingestion script to load data..."
-python ml/scripts/ingest_data.py
+docker-compose exec api python ml/scripts/ingest_data.py
 echo "✅ Database has been seeded."
 
 echo "🎉 All done! Your project environment is running and ready."
