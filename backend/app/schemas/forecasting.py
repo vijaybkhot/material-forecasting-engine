@@ -8,4 +8,5 @@ class ForecastItem(BaseModel):
 class ForecastResponse(BaseModel):
     material_id: str
     forecast: List[ForecastItem]
-    source: str # e.g., 'cache' or 'model'
+    source: str
+    storage_mode: str
