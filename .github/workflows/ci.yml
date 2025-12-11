@@ -97,7 +97,7 @@ jobs:
           curl -f https://constrisk-api-96f05a1f5ba2.herokuapp.com/materials || exit 1
           echo "✅ Heroku app is healthy!"
 
-  # --- JOB 4: Verify S3 Data Pipeline (NEW!) ---
+  # --- JOB 4: Verify S3 Data Pipeline ---
   verify-s3-pipeline:
     needs: deploy-to-heroku
     runs-on: ubuntu-latest
@@ -107,12 +107,11 @@ jobs:
         run: |
           echo "🔍 Testing Forecast API with S3 storage..."
 
-          # Make forecast request
-          RESPONSE=$(curl -s "https://constrisk-api.herokuapp.com/forecast?material_id=FED_FUNDS_RATE&horizon=12")
+          # Make forecast request with CORRECT URL
+          RESPONSE=$(curl -s "https://constrisk-api-96f05a1f5ba2.herokuapp.com/forecast?material_id=FED_FUNDS_RATE&horizon=12")
 
           echo "📋 Response: $RESPONSE"
 
-          # Check if response contains S3 storage mode
           if echo "$RESPONSE" | grep -q '"storage_mode":"S3"'; then
             echo "✅ Data is coming from S3!"
           else
@@ -120,7 +119,6 @@ jobs:
             exit 1
           fi
 
-          # Check if forecast data exists
           if echo "$RESPONSE" | grep -q '"forecast"'; then
             echo "✅ Forecast data generated successfully!"
           else
@@ -132,28 +130,19 @@ jobs:
         run: |
           echo "🔍 Testing all materials..."
 
-          # Parse JSON properly to get material IDs
-          MATERIALS=$(curl -s "https://constrisk-api.herokuapp.com/materials" | grep -oP '(?<="materials":\s*)\[.*?\]' | tr ',' '\n' | grep -oP '(?<=")\w+(?=")')
+          MATERIALS=("PPI_STEEL" "PPI_LUMBER" "CPI_ALL" "FED_FUNDS_RATE" "HOUSING_STARTS" "PPI_CONCRETE")
 
-          if [ -z "$MATERIALS" ]; then
-            echo "⚠️ Could not parse materials, using default list"
-            MATERIALS="PPI_STEEL PPI_LUMBER CPI_ALL FED_FUNDS_RATE HOUSING_STARTS PPI_CONCRETE"
-          fi
-
-          for material in $MATERIALS; do
-            material_clean=$(echo "$material" | tr -d '"' | xargs)
-            if [ -n "$material_clean" ]; then
-              echo "Testing: $material_clean"
-              curl -f "https://constrisk-api.herokuapp.com/forecast?material_id=${material_clean}&horizon=6" > /dev/null 2>&1 && \
-                echo "  ✅ $material_clean forecast working" || \
-                echo "  ❌ $material_clean forecast failed"
-            fi
+          for material in "${MATERIALS[@]}"; do
+            echo "Testing: $material"
+            curl -f "https://constrisk-api-96f05a1f5ba2.herokuapp.com/forecast?material_id=${material}&horizon=6" > /dev/null 2>&1 && \
+              echo "  ✅ $material forecast working" || \
+              echo "  ❌ $material forecast failed"
           done
 
       - name: Test Historical Data Endpoint
         run: |
           echo "🔍 Testing historical data endpoint..."
-          curl -f "https://constrisk-api.herokuapp.com/historical-data/PPI_STEEL" > /dev/null 2>&1 && \
+          curl -f "https://constrisk-api-96f05a1f5ba2.herokuapp.com/historical-data/PPI_STEEL" > /dev/null 2>&1 && \
             echo "✅ Historical data endpoint working" || \
             echo "❌ Historical data endpoint failed"
 
@@ -171,7 +160,7 @@ jobs:
           echo "  • S3 Pipeline: ✅ Data loading from AWS S3"
           echo "  • API Health: ✅ All endpoints operational"
           echo ""
-          echo "🔗 Live App: https://constrisk-api.herokuapp.com"
+          echo "🔗 Live App: https://constrisk-api-96f05a1f5ba2.herokuapp.com"
           echo "📡 Storage Mode: S3 (AWS)"
           echo "💾 Database: PostgreSQL on Heroku"
           echo "⚡ Cache: Redis enabled"
