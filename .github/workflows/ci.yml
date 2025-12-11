@@ -94,7 +94,7 @@ jobs:
 
       - name: ✅ Check Heroku App Health
         run: |
-          curl -f https://constrisk-api.herokuapp.com/materials || exit 1
+          curl -f https://constrisk-api-96f05a1f5ba2.herokuapp.com/materials || exit 1
           echo "✅ Heroku app is healthy!"
 
   # --- JOB 4: Verify S3 Data Pipeline (NEW!) ---
