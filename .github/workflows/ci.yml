@@ -76,7 +76,7 @@ jobs:
           fetch-depth: 0 # ← Full history for Heroku
 
       - name: Deploy to Heroku
-        uses: AkhileshNS/heroku-deploy@v3.13.15
+        uses: heroku/deploy-github-actions@v4.1.1
         with:
           heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
           heroku_app_name: "constrisk-api"
@@ -127,16 +127,22 @@ jobs:
         run: |
           echo "🔍 Testing all materials..."
 
-          MATERIALS=$(curl -s "https://constrisk-api.herokuapp.com/materials" | grep -o '"[^"]*"' | head -6)
+          # Parse JSON properly to get material IDs
+          MATERIALS=$(curl -s "https://constrisk-api.herokuapp.com/materials" | grep -oP '(?<="materials":\s*)\[.*?\]' | tr ',' '\n' | grep -oP '(?<=")\w+(?=")')
+
+          if [ -z "$MATERIALS" ]; then
+            echo "⚠️ Could not parse materials, using default list"
+            MATERIALS="PPI_STEEL PPI_LUMBER CPI_ALL FED_FUNDS_RATE HOUSING_STARTS PPI_CONCRETE"
+          fi
 
           for material in $MATERIALS; do
-            material_clean=$(echo $material | tr -d '"')
-            echo "Testing: $material_clean"
-            
-            # Test forecast for each material
-            curl -f "https://constrisk-api.herokuapp.com/forecast?material_id=${material_clean}&horizon=6" > /dev/null 2>&1 && \
-              echo "  ✅ $material_clean forecast working" || \
-              echo "  ❌ $material_clean forecast failed"
+            material_clean=$(echo "$material" | tr -d '"' | xargs)
+            if [ -n "$material_clean" ]; then
+              echo "Testing: $material_clean"
+              curl -f "https://constrisk-api.herokuapp.com/forecast?material_id=${material_clean}&horizon=6" > /dev/null 2>&1 && \
+                echo "  ✅ $material_clean forecast working" || \
+                echo "  ❌ $material_clean forecast failed"
+            fi
           done
 
       - name: Test Historical Data Endpoint
