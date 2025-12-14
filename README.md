@@ -28,105 +28,61 @@ The system implements a **complete ETL (Extract, Transform, Load) and Real-Time 
 ```mermaid
 graph TD
     %% --- STYLING ---
-    classDef external fill:#f5f5f5,stroke:#666,stroke-dasharray: 5 5;
-    classDef storage fill:#fff3e0,stroke:#e65100,stroke-width:2px;
-    classDef cloud fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
-    classDef script fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
-    classDef service fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
-    classDef frontend fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px;
-    classDef cache fill:#ffe0b2,stroke:#e65100,stroke-width:2px;
+    classDef actor fill:#f5f5f5,stroke:#333,stroke-width:2px;
+    classDef frontend fill:#e1bee7,stroke:#4a148c,stroke-width:2px;
+    classDef backend fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px;
+    classDef storage fill:#fff9c4,stroke:#fbc02d,stroke-width:2px;
+    classDef cloud fill:#bbdefb,stroke:#0d47a1,stroke-width:2px;
+    classDef process fill:#e0e0e0,stroke:#616161,stroke-dasharray: 5 5;
 
-    %% --- EXTERNAL ACTORS ---
-    User((👤 User)):::external
-    FRED[("🏦 FRED API")]:::external
-    GitHub[("🐙 GitHub")]:::external
+    %% --- EXTERNAL ---
+    User((👤 User)):::actor
+    FRED[("🏦 FRED API")]:::actor
 
-    %% --- HEROKU CLOUD ---
-    subgraph Heroku_Cloud ["☁️ HEROKU CLOUD - Production"]
-        direction TB
-
-        %% --- DATA PERSISTENCE ---
-        subgraph Data_Layer ["💾 Data Persistence"]
-            Postgres[("🐘 PostgreSQL")]:::storage
-            Redis[("🔴 Redis Cache")]:::cache
+    %% --- HEROKU RUNTIME ---
+    subgraph Heroku ["☁️ Heroku Runtime"]
+        
+        %% ONLINE SERVING
+        subgraph Online ["⚡ Online Serving"]
+            NextJS["⚛️ Next.js Frontend<br>(Vercel/Heroku)"]:::frontend
+            FastAPI["⚡ FastAPI Backend<br>(ArtifactManager)"]:::backend
         end
 
-        %% --- AWS S3 ---
-        subgraph S3_Storage ["☁️ AWS S3 - Models"]
-            S3Models["🤖 Models<br/>FED_FUNDS_RATE.pkl<br/>PPI_STEEL.pkl<br/>PPI_LUMBER.pkl"]:::cloud
-            S3Manifest["📋 Manifests<br/>.json metadata"]:::cloud
-        end
-
-        %% --- OFFLINE PIPELINE ---
-        subgraph Offline_Pipeline ["🛠️ Offline ETL & Training"]
-            IngestScript["📜 ingest_data.py"]:::script
-            TrainScript["📜 train_all_models.py"]:::script
-
-            IngestScript -->|"1️⃣ Fetch"| FRED
-            FRED -->|"Dates, Values"| IngestScript
-            IngestScript -->|"2️⃣ Upsert"| Postgres
-
-            TrainScript -->|"3️⃣ Load Data"| Postgres
-            TrainScript -->|"4️⃣ SARIMAX Training"| TrainScript
-            TrainScript -->|"5️⃣ Save .pkl"| LocalFS["📂 Local FS"]:::storage
-            LocalFS -->|"6️⃣ Upload"| S3Models
-        end
-
-        %% --- ONLINE API ---
-        subgraph Online_Pipeline ["⚡ Real-Time Inference API"]
-            NextJS["⚛️ Frontend<br/>Next.js"]:::frontend
-            FastAPI["⚡ FastAPI Backend"]:::service
-
-            User -->|"Browser"| NextJS
-            NextJS -->|"GET /forecast"| FastAPI
-        end
-
-        %% --- FORECAST LOGIC WITH CACHING ---
-        subgraph Forecast_Logic ["🔮 Forecast Generation"]
-            CheckCache["1️⃣ Check Redis"]:::cache
-            CacheHit{"Cache Hit?"}:::cache
-            ReturnCached["✅ Return<br/>(from cache)"]:::cache
-
-            LoadS3["2️⃣ Load from S3"]:::cloud
-            LoadModel["🤖 Download .pkl"]:::cloud
-            Deserialize["3️⃣ joblib.load"]:::script
-            Generate["4️⃣ Forecast"]:::script
-            SetCache["5️⃣ Cache<br/>(1hr TTL)"]:::cache
-            ReturnJSON["✅ Return JSON"]:::service
-
-            CheckCache --> CacheHit
-            CacheHit -->|HIT| ReturnCached
-            CacheHit -->|MISS| LoadS3
-            LoadS3 --> LoadModel
-            LoadModel --> Deserialize
-            Deserialize --> Generate
-            Generate --> SetCache
-            SetCache --> ReturnJSON
+        %% OFFLINE PROCESSING
+        subgraph Offline ["🛠️ Offline Data Ops"]
+            Ingest["📜 Ingestion Script<br>(ingest_data.py)"]:::process
+            Train["🧠 Training Script<br>(train_all_models.py)"]:::process
         end
     end
 
-    %% --- CI/CD PIPELINE ---
-    subgraph CI_CD ["🚀 CI/CD - GitHub Actions"]
-        Push["📤 git push"]:::external
-        BackendTest["✅ Test"]:::script
-        DeployHeroku["🚀 Deploy"]:::service
-        VerifyS3["✔️ Verify S3"]:::cloud
-
-        GitHub --> Push
-        Push --> BackendTest
-        BackendTest --> DeployHeroku
-        DeployHeroku --> VerifyS3
+    %% --- DATA INFRASTRUCTURE ---
+    subgraph Infrastructure ["💾 Data Infrastructure"]
+        Postgres[("🐘 PostgreSQL<br>(Raw Series Data)")]:::storage
+        Redis[("🔴 Redis Cache<br>(1hr TTL)")]:::storage
+        S3[("📦 AWS S3 Bucket<br>(Model Artifacts)")]:::cloud
     end
 
-    %% --- CONNECTIONS ---
-    FastAPI --> Forecast_Logic
-    Forecast_Logic --> Redis
-    Forecast_Logic --> S3Models
-    LocalFS -.->|"Post-train"| S3Models
+    %% --- FLOWS ---
+    
+    %% 1. User Flow
+    User ==>|"Browser"| NextJS
+    NextJS ==>|"GET /forecast"| FastAPI
+    
+    %% 2. Inference Flow (The "Hybrid" Logic)
+    FastAPI -->|"1. Check Cache"| Redis
+    Redis -.->|"Hit"| FastAPI
+    FastAPI -- "2. Miss? Download Model" --> S3
+    S3 -.->|"Stream .pkl"| FastAPI
 
-    linkStyle default stroke:#333,stroke-width:1.5px;
-```
+    %% 3. ETL Flow
+    FRED -->|"Fetch Data"| Ingest
+    Ingest -->|"Upsert"| Postgres
 
+    %% 4. Training Flow
+    Train -->|"Read History"| Postgres
+    Train -- "Upload Artifacts" --> S3
+    
+    %% Formatting
 ## Component Breakdown
 
 ### 🛠️ **Offline ETL & Training**
