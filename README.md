@@ -21,50 +21,146 @@ The **Material Forecasting Engine** is a full-stack machine learning application
 
 ---
 
-## 🧠 System Architecture & Data Flow
+## 🏗️ System Architecture
 
-The system implements a complete **ETL (Extract, Transform, Load) and Inference pipeline**. It decouples the heavy ML operations from the user-facing application.
+The system implements a **complete ETL (Extract, Transform, Load) and Real-Time Inference pipeline** with cloud-native storage and intelligent caching. It decouples heavy ML operations from user-facing applications and leverages AWS S3 for scalable model artifact storage.
 
 ```mermaid
 graph TD
-    %% Theme & Colors
-    %%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#ffaa00', 'edgeLabelBackground':'#ffffff', 'tertiaryColor': '#f4f4f4'}}}%%
-    classDef client fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px,color:#4a148c;
-    classDef app fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:#0d47a1;
-    classDef infra fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:#bf360c;
-    classDef data fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#1b5e20;
-    classDef external fill:#f5f5f5,stroke:#616161,stroke-width:2px,stroke-dasharray: 5 5,color:#212121;
+    %% --- STYLING ---
+    classDef external fill:#f5f5f5,stroke:#666,stroke-dasharray: 5 5;
+    classDef storage fill:#fff3e0,stroke:#e65100,stroke-width:2px;
+    classDef cloud fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
+    classDef script fill:#e3f2fd,stroke:#1565c0,stroke-width:2px;
+    classDef service fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef frontend fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px;
+    classDef cache fill:#ffe0b2,stroke:#e65100,stroke-width:2px;
 
-    %% --- LEFT TRACK: DATA PIPELINE ---
-    subgraph Offline ["🛠️ Offline Data Pipeline"]
+    %% --- EXTERNAL ACTORS ---
+    User((👤 User)):::external
+    FRED[("🏦 FRED API")]:::external
+    GitHub[("🐙 GitHub")]:::external
+
+    %% --- HEROKU CLOUD ---
+    subgraph Heroku_Cloud ["☁️ HEROKU CLOUD - Production"]
         direction TB
-        FRED[("🏦 FRED API")]:::external
-        Ingest["⚙️ ETL Script"]:::app
-        DB[("🐘 PostgreSQL")]:::data
+        
+        %% --- DATA PERSISTENCE ---
+        subgraph Data_Layer ["💾 Data Persistence"]
+            Postgres[("🐘 PostgreSQL")]:::storage
+            Redis[("🔴 Redis Cache")]:::cache
+        end
 
-        FRED -->|"1. Fetch Raw Data"| Ingest
-        Ingest -->|"2. Clean & Upsert"| DB
+        %% --- AWS S3 ---
+        subgraph S3_Storage ["☁️ AWS S3 - Models"]
+            S3Models["🤖 Models<br/>FED_FUNDS_RATE.pkl<br/>PPI_STEEL.pkl<br/>PPI_LUMBER.pkl"]:::cloud
+            S3Manifest["📋 Manifests<br/>.json metadata"]:::cloud
+        end
+
+        %% --- OFFLINE PIPELINE ---
+        subgraph Offline_Pipeline ["🛠️ Offline ETL & Training"]
+            IngestScript["📜 ingest_data.py"]:::script
+            TrainScript["📜 train_all_models.py"]:::script
+            
+            IngestScript -->|"1️⃣ Fetch"| FRED
+            FRED -->|"Dates, Values"| IngestScript
+            IngestScript -->|"2️⃣ Upsert"| Postgres
+            
+            TrainScript -->|"3️⃣ Load Data"| Postgres
+            TrainScript -->|"4️⃣ SARIMAX Training"| TrainScript
+            TrainScript -->|"5️⃣ Save .pkl"| LocalFS["📂 Local FS"]:::storage
+            LocalFS -->|"6️⃣ Upload"| S3Models
+        end
+
+        %% --- ONLINE API ---
+        subgraph Online_Pipeline ["⚡ Real-Time Inference API"]
+            NextJS["⚛️ Frontend<br/>Next.js"]:::frontend
+            FastAPI["⚡ FastAPI Backend"]:::service
+            
+            User -->|"Browser"| NextJS
+            NextJS -->|"GET /forecast"| FastAPI
+        end
+
+        %% --- FORECAST LOGIC WITH CACHING ---
+        subgraph Forecast_Logic ["🔮 Forecast Generation"]
+            CheckCache["1️⃣ Check Redis"]:::cache
+            CacheHit{"Cache Hit?"}:::cache
+            ReturnCached["✅ Return<br/>(from cache)"]:::cache
+            
+            LoadS3["2️⃣ Load from S3"]:::cloud
+            LoadModel["🤖 Download .pkl"]:::cloud
+            Deserialize["3️⃣ joblib.load"]:::script
+            Generate["4️⃣ Forecast"]:::script
+            SetCache["5️⃣ Cache<br/>(1hr TTL)"]:::cache
+            ReturnJSON["✅ Return JSON"]:::service
+            
+            CheckCache --> CacheHit
+            CacheHit -->|HIT| ReturnCached
+            CacheHit -->|MISS| LoadS3
+            LoadS3 --> LoadModel
+            LoadModel --> Deserialize
+            Deserialize --> Generate
+            Generate --> SetCache
+            SetCache --> ReturnJSON
+        end
     end
 
-    %% --- RIGHT TRACK: USER FLOW ---
-    subgraph Online ["⚡ Real-Time Inference"]
-        direction TB
-        Client["⚛️ Next.js"]:::client
-        API["⚡ FastAPI"]:::app
-        Cache[("🔴 Redis")]:::infra
-        Model["🧠 SARIMAX"]:::app
-
-        Client -->|"4. Request"| API
-        API <-->|"5. Cache Hit/Miss"| Cache
-        API -->|"6. Predict"| Model
+    %% --- CI/CD PIPELINE ---
+    subgraph CI_CD ["🚀 CI/CD - GitHub Actions"]
+        Push["📤 git push"]:::external
+        BackendTest["✅ Test"]:::script
+        DeployHeroku["🚀 Deploy"]:::service
+        VerifyS3["✔️ Verify S3"]:::cloud
+        
+        GitHub --> Push
+        Push --> BackendTest
+        BackendTest --> DeployHeroku
+        DeployHeroku --> VerifyS3
     end
 
-    %% --- THE BRIDGE ---
-    DB -.->|"3. Training Data"| Model
+    %% --- CONNECTIONS ---
+    FastAPI --> Forecast_Logic
+    Forecast_Logic --> Redis
+    Forecast_Logic --> S3Models
+    LocalFS -.->|"Post-train"| S3Models
 
-    %% Formatting to force parallel layout
-    linkStyle default stroke:#333,stroke-width:2px;
+    linkStyle default stroke:#333,stroke-width:1.5px;
 ```
+
+## Component Breakdown
+
+### 🛠️ **Offline ETL & Training**
+- **Data Ingestion** (`ingest_data.py`): Fetches economic indicators from FRED API, stores in PostgreSQL
+- **Model Training** (`train_all_models.py`): Fits SARIMAX models on historical data, saves to disk
+- **S3 Upload**: Pushes trained models to AWS S3 for production access
+
+### ⚡ **Real-Time Inference API**
+- **FastAPI Backend**: RESTful endpoints with request validation
+- **Next.js Frontend**: Interactive dashboard for forecasting
+- **Endpoints**:
+  - `GET /materials` - Available materials
+  - `GET /historical-data/{id}` - Historical prices
+  - `GET /forecast?material_id=X&horizon=12` - Predictions
+
+### 💾 **Data Persistence**
+- **PostgreSQL**: Stores raw economic time series
+- **Redis**: Caches forecasts (1-hour TTL)
+- **AWS S3**: Stores trained SARIMAX models and metadata
+
+### 🔮 **Forecast Generation with Caching**
+1. Check Redis for cached forecast
+2. If cached, return immediately
+3. If miss, load model from S3
+4. Deserialize SARIMAX object
+5. Generate 12-month forecast
+6. Cache result for 1 hour
+7. Return JSON with `storage_mode: S3`
+
+### 🚀 **CI/CD Pipeline**
+- Backend linting & testing (Python)
+- Frontend build verification
+- Automated Heroku deployment
+- S3 pipeline verification
 
 ---
 
