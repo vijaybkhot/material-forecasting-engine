@@ -44,7 +44,7 @@ graph TD
     %% --- HEROKU CLOUD ---
     subgraph Heroku_Cloud ["☁️ HEROKU CLOUD - Production"]
         direction TB
-        
+
         %% --- DATA PERSISTENCE ---
         subgraph Data_Layer ["💾 Data Persistence"]
             Postgres[("🐘 PostgreSQL")]:::storage
@@ -61,11 +61,11 @@ graph TD
         subgraph Offline_Pipeline ["🛠️ Offline ETL & Training"]
             IngestScript["📜 ingest_data.py"]:::script
             TrainScript["📜 train_all_models.py"]:::script
-            
+
             IngestScript -->|"1️⃣ Fetch"| FRED
             FRED -->|"Dates, Values"| IngestScript
             IngestScript -->|"2️⃣ Upsert"| Postgres
-            
+
             TrainScript -->|"3️⃣ Load Data"| Postgres
             TrainScript -->|"4️⃣ SARIMAX Training"| TrainScript
             TrainScript -->|"5️⃣ Save .pkl"| LocalFS["📂 Local FS"]:::storage
@@ -76,7 +76,7 @@ graph TD
         subgraph Online_Pipeline ["⚡ Real-Time Inference API"]
             NextJS["⚛️ Frontend<br/>Next.js"]:::frontend
             FastAPI["⚡ FastAPI Backend"]:::service
-            
+
             User -->|"Browser"| NextJS
             NextJS -->|"GET /forecast"| FastAPI
         end
@@ -86,14 +86,14 @@ graph TD
             CheckCache["1️⃣ Check Redis"]:::cache
             CacheHit{"Cache Hit?"}:::cache
             ReturnCached["✅ Return<br/>(from cache)"]:::cache
-            
+
             LoadS3["2️⃣ Load from S3"]:::cloud
             LoadModel["🤖 Download .pkl"]:::cloud
             Deserialize["3️⃣ joblib.load"]:::script
             Generate["4️⃣ Forecast"]:::script
             SetCache["5️⃣ Cache<br/>(1hr TTL)"]:::cache
             ReturnJSON["✅ Return JSON"]:::service
-            
+
             CheckCache --> CacheHit
             CacheHit -->|HIT| ReturnCached
             CacheHit -->|MISS| LoadS3
@@ -111,7 +111,7 @@ graph TD
         BackendTest["✅ Test"]:::script
         DeployHeroku["🚀 Deploy"]:::service
         VerifyS3["✔️ Verify S3"]:::cloud
-        
+
         GitHub --> Push
         Push --> BackendTest
         BackendTest --> DeployHeroku
@@ -130,11 +130,13 @@ graph TD
 ## Component Breakdown
 
 ### 🛠️ **Offline ETL & Training**
+
 - **Data Ingestion** (`ingest_data.py`): Fetches economic indicators from FRED API, stores in PostgreSQL
 - **Model Training** (`train_all_models.py`): Fits SARIMAX models on historical data, saves to disk
 - **S3 Upload**: Pushes trained models to AWS S3 for production access
 
 ### ⚡ **Real-Time Inference API**
+
 - **FastAPI Backend**: RESTful endpoints with request validation
 - **Next.js Frontend**: Interactive dashboard for forecasting
 - **Endpoints**:
@@ -143,11 +145,13 @@ graph TD
   - `GET /forecast?material_id=X&horizon=12` - Predictions
 
 ### 💾 **Data Persistence**
+
 - **PostgreSQL**: Stores raw economic time series
 - **Redis**: Caches forecasts (1-hour TTL)
 - **AWS S3**: Stores trained SARIMAX models and metadata
 
 ### 🔮 **Forecast Generation with Caching**
+
 1. Check Redis for cached forecast
 2. If cached, return immediately
 3. If miss, load model from S3
@@ -157,6 +161,7 @@ graph TD
 7. Return JSON with `storage_mode: S3`
 
 ### 🚀 **CI/CD Pipeline**
+
 - Backend linting & testing (Python)
 - Frontend build verification
 - Automated Heroku deployment
