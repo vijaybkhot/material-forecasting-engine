@@ -25,7 +25,7 @@ The **Material Forecasting Engine** is a full-stack machine learning application
 
 The system implements a **complete ETL (Extract, Transform, Load) and Real-Time Inference pipeline** with cloud-native storage and intelligent caching. It decouples heavy ML operations from user-facing applications and leverages AWS S3 for scalable model artifact storage.
 
-```mermaid
+````mermaid
 graph TD
     %% --- STYLING ---
     classDef actor fill:#f5f5f5,stroke:#333,stroke-width:2px;
@@ -41,7 +41,7 @@ graph TD
 
     %% --- HEROKU RUNTIME ---
     subgraph Heroku ["☁️ Heroku Runtime"]
-        
+
         %% ONLINE SERVING
         subgraph Online ["⚡ Online Serving"]
             NextJS["⚛️ Next.js Frontend<br>(Vercel/Heroku)"]:::frontend
@@ -63,11 +63,11 @@ graph TD
     end
 
     %% --- FLOWS ---
-    
+
     %% 1. User Flow
     User ==>|"Browser"| NextJS
     NextJS ==>|"GET /forecast"| FastAPI
-    
+
     %% 2. Inference Flow (The "Hybrid" Logic)
     FastAPI -->|"1. Check Cache"| Redis
     Redis -.->|"Hit"| FastAPI
@@ -81,7 +81,7 @@ graph TD
     %% 4. Training Flow
     Train -->|"Read History"| Postgres
     Train -- "Upload Artifacts" --> S3
-    
+
     %% Formatting
 ## Component Breakdown
 
@@ -198,7 +198,7 @@ graph LR
     C -->|Release Container| E[Heroku Backend API]
     E <--> F[PostgreSQL DB]
     E <--> G[Redis Cache]
-```
+````
 
 ---
 
