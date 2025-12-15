@@ -82,7 +82,9 @@ graph TD
     Train -->|"Read History"| Postgres
     Train -- "Upload Artifacts" --> S3
 
-    %% Formatting
+    linkStyle default stroke:#333,stroke-width:1.5px;
+```
+
 ## Component Breakdown
 
 ### 🛠️ **Offline ETL & Training**
