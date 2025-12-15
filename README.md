@@ -25,7 +25,7 @@ The **Material Forecasting Engine** is a full-stack machine learning application
 
 The system implements a **complete ETL (Extract, Transform, Load) and Real-Time Inference pipeline** with cloud-native storage and intelligent caching. It decouples heavy ML operations from user-facing applications and leverages AWS S3 for scalable model artifact storage.
 
-````mermaid
+```mermaid
 graph TD
     %% --- STYLING ---
     classDef actor fill:#f5f5f5,stroke:#333,stroke-width:2px;
@@ -200,7 +200,7 @@ graph LR
     C -->|Release Container| E[Heroku Backend API]
     E <--> F[PostgreSQL DB]
     E <--> G[Redis Cache]
-````
+```
 
 ---
 
