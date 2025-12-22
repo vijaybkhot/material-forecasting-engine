@@ -97,7 +97,14 @@ jobs:
           curl -f https://constrisk-api-96f05a1f5ba2.herokuapp.com/materials || exit 1
           echo "✅ Heroku app is healthy!"
 
-  # --- JOB 4: Verify S3 Data Pipeline ---
+      - name: 🤖 Trigger Model Training on Heroku
+        env:
+          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+        run: |
+          echo "🤖 Starting model training on Heroku..."
+          heroku run "python ml/scripts/train_all_models.py" -a constrisk-api --exit-code
+          echo "✅ Model training complete!"
+
   # --- JOB 4: Verify S3 Data Pipeline & Model Registry ---
   verify-s3-pipeline:
     needs: deploy-to-heroku
