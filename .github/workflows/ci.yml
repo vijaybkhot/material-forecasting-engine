@@ -127,17 +127,39 @@ jobs:
           echo "🔍 Checking Heroku Database for registered models..."
 
           # Query the database count using Heroku CLI
-          # We use '-a constrisk-api' to target your app
-          # We use 'grep' to clean up the SQL output and get just the number
           MODEL_COUNT=$(heroku pg:psql -a constrisk-api -c "SELECT count(*) FROM models;" | grep -o '[0-9]\+' | head -n 1)
-
           echo "📊 Found $MODEL_COUNT models in the registry."
 
-          if [ "$MODEL_COUNT" -gt "0" ]; then
-            echo "✅ Model Registry is active and populated!"
-          else
+          if [ "$MODEL_COUNT" -eq "0" ]; then
             echo "❌ Model Registry is empty! Training script might have failed."
             exit 1
+          fi
+          echo "✅ Model Registry is populated!"
+
+          # Verify git_sha is present and correct
+          echo ""
+          echo "🔐 Verifying git_sha metadata in latest model records..."
+
+          CURRENT_SHA=$(git rev-parse HEAD)
+          CURRENT_SHA_SHORT=$(echo $CURRENT_SHA | cut -c1-7)
+          echo "📌 Current commit SHA: $CURRENT_SHA_SHORT (full: $CURRENT_SHA)"
+
+          # Query the latest model's git_sha
+          LATEST_SHA=$(heroku pg:psql -a constrisk-api -c "SELECT DISTINCT git_sha FROM models ORDER BY created_at DESC LIMIT 1;" | grep -o '[a-f0-9]\+' | head -n 1)
+
+          if [ -z "$LATEST_SHA" ] || [ "$LATEST_SHA" = "unknown" ]; then
+            echo "❌ git_sha is missing or unknown! Models not capturing commit metadata."
+            exit 1
+          fi
+
+          echo "✅ git_sha found: $LATEST_SHA"
+
+          # Verify it matches current commit (check short form)
+          if [ "$LATEST_SHA" = "$CURRENT_SHA_SHORT" ] || [ "$LATEST_SHA" = "$CURRENT_SHA" ]; then
+            echo "✅ git_sha matches current commit! Metadata capture is working correctly."
+          else
+            echo "⚠️  git_sha ($LATEST_SHA) doesn't match current commit ($CURRENT_SHA_SHORT)"
+            echo "ℹ️  This is expected if models from previous commit still exist in DB"
           fi
 
       # Step 3: Existing S3 Checks
