@@ -24,6 +24,8 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
+    environment:
+      - GIT_SHA=${GIT_SHA}
     env_file:
       - .env
     depends_on:

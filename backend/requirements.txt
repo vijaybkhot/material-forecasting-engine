@@ -37,3 +37,4 @@ redis
 scikit-learn
 statsmodels
 boto3
+gitpython

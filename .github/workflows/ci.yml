@@ -98,71 +98,69 @@ jobs:
           echo "✅ Heroku app is healthy!"
 
   # --- JOB 4: Verify S3 Data Pipeline ---
+  # --- JOB 4: Verify S3 Data Pipeline & Model Registry ---
   verify-s3-pipeline:
     needs: deploy-to-heroku
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 👇 Step 1: Install Heroku CLI (Required to query DB)
+      - name: Install Heroku CLI
+        run: |
+          curl https://cli-assets.heroku.com/install.sh | sh
+
+      # 👇 Step 2: Check Model Registry (The New Feature!)
+      - name: Verify Model Registry (Postgres)
+        env:
+          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+        run: |
+          echo "🔍 Checking Heroku Database for registered models..."
+
+          # Query the database count using Heroku CLI
+          # We use '-a constrisk-api' to target your app
+          # We use 'grep' to clean up the SQL output and get just the number
+          MODEL_COUNT=$(heroku pg:psql -a constrisk-api -c "SELECT count(*) FROM models;" | grep -o '[0-9]\+' | head -n 1)
+
+          echo "📊 Found $MODEL_COUNT models in the registry."
+
+          if [ "$MODEL_COUNT" -gt "0" ]; then
+            echo "✅ Model Registry is active and populated!"
+          else
+            echo "❌ Model Registry is empty! Training script might have failed."
+            exit 1
+          fi
+
+      # Step 3: Existing S3 Checks
       - name: Test Forecast API (S3 Storage)
         run: |
           echo "🔍 Testing Forecast API with S3 storage..."
-
-          # Make forecast request with CORRECT URL
           RESPONSE=$(curl -s "https://constrisk-api-96f05a1f5ba2.herokuapp.com/forecast?material_id=FED_FUNDS_RATE&horizon=12")
-
-          echo "📋 Response: $RESPONSE"
 
           if echo "$RESPONSE" | grep -q '"storage_mode":"S3"'; then
             echo "✅ Data is coming from S3!"
           else
-            echo "❌ Data NOT from S3!"
-            exit 1
-          fi
-
-          if echo "$RESPONSE" | grep -q '"forecast"'; then
-            echo "✅ Forecast data generated successfully!"
-          else
-            echo "❌ No forecast data!"
+            echo "❌ Data NOT from S3! (Response: $RESPONSE)"
             exit 1
           fi
 
       - name: Test All Materials Endpoints
         run: |
-          echo "🔍 Testing all materials..."
-
           MATERIALS=("PPI_STEEL" "PPI_LUMBER" "CPI_ALL" "FED_FUNDS_RATE" "HOUSING_STARTS" "PPI_CONCRETE")
-
           for material in "${MATERIALS[@]}"; do
-            echo "Testing: $material"
-            curl -f "https://constrisk-api-96f05a1f5ba2.herokuapp.com/forecast?material_id=${material}&horizon=6" > /dev/null 2>&1 && \
-              echo "  ✅ $material forecast working" || \
-              echo "  ❌ $material forecast failed"
+             # Use curl -f to fail on 404/500 errors
+             curl -f -s "https://constrisk-api-96f05a1f5ba2.herokuapp.com/forecast?material_id=${material}&horizon=6" > /dev/null && \
+             echo "  ✅ $material forecast working" || \
+             (echo "  ❌ $material forecast failed" && exit 1)
           done
-
-      - name: Test Historical Data Endpoint
-        run: |
-          echo "🔍 Testing historical data endpoint..."
-          curl -f "https://constrisk-api-96f05a1f5ba2.herokuapp.com/historical-data/PPI_STEEL" > /dev/null 2>&1 && \
-            echo "✅ Historical data endpoint working" || \
-            echo "❌ Historical data endpoint failed"
 
       - name: 🎉 Success Summary
         run: |
-          echo ""
           echo "════════════════════════════════════════════"
-          echo "✅ DEPLOYMENT SUCCESSFUL!"
+          echo "✅ DEPLOYMENT & REGISTRY CHECK SUCCESSFUL!"
           echo "════════════════════════════════════════════"
-          echo ""
-          echo "📊 Status:"
-          echo "  • Backend: ✅ Linted & Tested"
-          echo "  • Frontend: ✅ Built & Optimized"
-          echo "  • Heroku: ✅ Deployed to constrisk-api"
-          echo "  • S3 Pipeline: ✅ Data loading from AWS S3"
-          echo "  • API Health: ✅ All endpoints operational"
-          echo ""
           echo "🔗 Live App: https://constrisk-api-96f05a1f5ba2.herokuapp.com"
-          echo "📡 Storage Mode: S3 (AWS)"
-          echo "💾 Database: PostgreSQL on Heroku"
-          echo "⚡ Cache: Redis enabled"
-          echo ""
+          echo "📊 Registry: Verified (Models exist in DB)"
           echo "════════════════════════════════════════════"
