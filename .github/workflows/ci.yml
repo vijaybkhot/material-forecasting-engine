@@ -102,7 +102,7 @@ jobs:
           HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
         run: |
           echo "🤖 Starting model training on Heroku..."
-          heroku run "python ml/scripts/train_all_models.py" -a constrisk-api --exit-code
+          heroku run "export PYTHONPATH=/app && python ml/scripts/train_all_models.py" -a constrisk-api --exit-code
           echo "✅ Model training complete!"
 
   # --- JOB 4: Verify S3 Data Pipeline & Model Registry ---
