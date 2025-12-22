@@ -145,7 +145,7 @@ jobs:
           echo "📌 Current commit SHA: $CURRENT_SHA_SHORT (full: $CURRENT_SHA)"
 
           # Query the latest model's git_sha
-          LATEST_SHA=$(heroku pg:psql -a constrisk-api -c "SELECT DISTINCT git_sha FROM models ORDER BY created_at DESC LIMIT 1;" | grep -o '[a-f0-9]\+' | head -n 1)
+          LATEST_SHA=$(heroku pg:psql -a constrisk-api -c "SELECT git_sha FROM models ORDER BY created_at DESC LIMIT 1;" | grep -o '[a-f0-9]\+' | head -n 1)
 
           if [ -z "$LATEST_SHA" ] || [ "$LATEST_SHA" = "unknown" ]; then
             echo "❌ git_sha is missing or unknown! Models not capturing commit metadata."
