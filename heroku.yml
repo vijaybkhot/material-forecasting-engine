@@ -10,7 +10,7 @@ build:
 
 release:
   command:
-    - sh -c "export PYTHONPATH=/app && alembic upgrade head && python ml/scripts/ingest_data.py"
+    - sh -c "export PYTHONPATH=/app && export GIT_SHA=$(git rev-parse HEAD) && alembic upgrade head && python ml/scripts/ingest_data.py && python ml/scripts/train_all_models.py"
   image: web
 
 run:
