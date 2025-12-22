@@ -126,8 +126,13 @@ jobs:
         run: |
           echo "🔍 Checking Heroku Database for registered models..."
 
-          # Query the database count using Heroku CLI
-          MODEL_COUNT=$(heroku pg:psql -a constrisk-api -c "SELECT count(*) FROM models;" | grep -o '[0-9]\+' | head -n 1)
+          # 1. Get the Count (Using COPY for raw output)
+          # "COPY (...) TO STDOUT" prints just the value, no headers/borders.
+          MODEL_COUNT=$(heroku pg:psql -a constrisk-api -c "COPY (SELECT count(*) FROM models) TO STDOUT")
+
+          # Trim whitespace
+          MODEL_COUNT=$(echo "$MODEL_COUNT" | xargs)
+
           echo "📊 Found $MODEL_COUNT models in the registry."
 
           if [ "$MODEL_COUNT" -eq "0" ]; then
@@ -136,30 +141,37 @@ jobs:
           fi
           echo "✅ Model Registry is populated!"
 
-          # Verify git_sha is present and correct
+          # 2. Verify Git SHA
           echo ""
-          echo "🔐 Verifying git_sha metadata in latest model records..."
+          echo "🔐 Verifying git_sha metadata..."
 
-          CURRENT_SHA=$(git rev-parse HEAD)
-          CURRENT_SHA_SHORT=$(echo $CURRENT_SHA | cut -c1-7)
-          echo "📌 Current commit SHA: $CURRENT_SHA_SHORT (full: $CURRENT_SHA)"
+          # Get Current SHA (Short version)
+          CURRENT_SHA=$(git rev-parse --short HEAD)
+          echo "📌 Current GitHub Commit: $CURRENT_SHA"
 
-          # Query the latest model's git_sha
-          LATEST_SHA=$(heroku pg:psql -a constrisk-api -c "SELECT git_sha FROM models ORDER BY created_at DESC LIMIT 1;" | grep -o '[a-f0-9]\+' | head -n 1)
+          # Get DB SHA (Using COPY for raw output)
+          LATEST_SHA=$(heroku pg:psql -a constrisk-api -c "COPY (SELECT git_sha FROM models ORDER BY created_at DESC LIMIT 1) TO STDOUT")
 
+          # Trim whitespace
+          LATEST_SHA=$(echo "$LATEST_SHA" | xargs)
+
+          echo "✅ Database Registry SHA: $LATEST_SHA"
+
+          # Basic validation
           if [ -z "$LATEST_SHA" ] || [ "$LATEST_SHA" = "unknown" ]; then
-            echo "❌ git_sha is missing or unknown! Models not capturing commit metadata."
-            exit 1
+             echo "❌ Error: git_sha in DB is missing or 'unknown'"
+             exit 1
           fi
 
-          echo "✅ git_sha found: $LATEST_SHA"
-
-          # Verify it matches current commit (check short form)
-          if [ "$LATEST_SHA" = "$CURRENT_SHA_SHORT" ] || [ "$LATEST_SHA" = "$CURRENT_SHA" ]; then
-            echo "✅ git_sha matches current commit! Metadata capture is working correctly."
+          # Compare
+          if [ "$LATEST_SHA" = "$CURRENT_SHA" ]; then
+             echo "✅ SUCCESS: Database matches GitHub Commit!"
           else
-            echo "⚠️  git_sha ($LATEST_SHA) doesn't match current commit ($CURRENT_SHA_SHORT)"
-            echo "ℹ️  This is expected if models from previous commit still exist in DB"
+             # Note: We print a warning but don't fail the build here because 
+             # sometimes Heroku takes a few seconds to update the DB, 
+             # and we might be reading the 'previous' row by accident.
+             echo "⚠️  WARNING: DB has '$LATEST_SHA' but GitHub is '$CURRENT_SHA'"
+             echo "ℹ️  (This is acceptable if the training run finished just before this check)"
           fi
 
       # Step 3: Existing S3 Checks
